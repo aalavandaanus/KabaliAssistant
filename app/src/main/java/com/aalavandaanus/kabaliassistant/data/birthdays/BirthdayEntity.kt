@@ -1,18 +1,24 @@
-package com.aalavandaanus.kabaliassistant.data
+package com.aalavandaanus.kabaliassistant.data.birthdays
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
 @Entity(tableName = "birthdays")
-data class Birthday(
+data class BirthdayEntity(
     @PrimaryKey(autoGenerate = true)
-    val id: Long = 0,
+    val id: Int = 0,
 
     val name: String,
 
-    val date: String,
+    val relation: String,
 
-    val relationship: String? = null,
+    val contactNumber: String,
+
+    val month: Int,
+
+    val day: Int,
+
+    val year: Int,
 
     val notificationEnabled: Boolean = true,
 

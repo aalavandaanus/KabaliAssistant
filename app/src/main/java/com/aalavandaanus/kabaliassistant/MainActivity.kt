@@ -38,6 +38,10 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 import android.os.Handler
 import android.os.Looper
+import java.io.FileOutputStream
+import java.io.RandomAccessFile
+import com.aalavandaanus.kabaliassistant.navigation.AppNavigation
+import com.aalavandaanus.kabaliassistant.data.birthdays.BirthdayWorkScheduler
 
 class MainActivity : ComponentActivity() {
 
@@ -50,7 +54,6 @@ class MainActivity : ComponentActivity() {
 
     private var ortEnvironment: OrtEnvironment? = null
     private var ortSession: OrtSession? = null
-
     // ============================================================
     // AUDIO / MODEL PARAMETERS
     // ============================================================
@@ -73,6 +76,9 @@ class MainActivity : ComponentActivity() {
 
     private var audioRecord: AudioRecord? = null
     private var recordingThread: Thread? = null
+    private var diagnosticWavFile: File? = null
+    private var diagnosticWavOutput: FileOutputStream? = null
+    private var diagnosticWavDataSize: Int = 0
 
     @Volatile
     private var isListening = false
@@ -97,6 +103,7 @@ class MainActivity : ComponentActivity() {
     private var wakeWordTriggered = false
     private val diagnosticMode = true
     private val MIN_RMS = 0.005f
+
     // ============================================================
     // SPEECH RECOGNIZER
     // ============================================================
@@ -138,23 +145,26 @@ class MainActivity : ComponentActivity() {
 
         super.onCreate(
             savedInstanceState
-        )
 
+
+        )
+        BirthdayWorkScheduler.schedule(this)
         setContent {
 
-            KabaliScreen(
-                onStartListening = {
-                    startAssistant()
-                },
+           // KabaliScreen(
+              //  onStartListening = {
+                //    startAssistant()
+               // },
 
-                onVoiceCommand = {
-                    startSpeechRecognition()
-                },
+              //  onVoiceCommand = {
+               // //    startSpeechRecognition()
+               // },
 
-                onStop = {
-                    stopAssistant()
-                }
-            )
+                //onStop = {
+                //  stopAssistant()
+             //   }
+                        AppNavigation()
+           // )
         }
 
         loadKabaliModel()
@@ -356,7 +366,142 @@ class MainActivity : ComponentActivity() {
             )
         }
     }
+    private fun startDiagnosticRecording() {
 
+        val file = File(filesDir, "kabali_live_test.wav")
+
+        diagnosticWavFile = file
+        diagnosticWavOutput = FileOutputStream(file)
+        diagnosticWavDataSize = 0
+
+        // Write placeholder WAV header.
+        diagnosticWavOutput?.write(ByteArray(44))
+
+        Log.d(
+            tag,
+            "🎙️ Diagnostic WAV recording started: ${file.absolutePath}"
+        )
+    }
+
+    private fun writeDiagnosticAudio(
+        buffer: ShortArray,
+        length: Int
+    ) {
+        val output = diagnosticWavOutput ?: return
+
+        val bytes = ByteArray(length * 2)
+
+        for (i in 0 until length) {
+
+            val sample = buffer[i].toInt()
+
+            bytes[i * 2] =
+                (sample and 0xFF).toByte()
+
+            bytes[i * 2 + 1] =
+                ((sample shr 8) and 0xFF).toByte()
+        }
+
+        output.write(bytes)
+
+        diagnosticWavDataSize += bytes.size
+    }
+
+    private fun stopDiagnosticRecording() {
+
+        val output = diagnosticWavOutput ?: return
+        val file = diagnosticWavFile ?: return
+
+        output.flush()
+        output.close()
+
+        diagnosticWavOutput = null
+
+        writeWavHeader(
+            file = file,
+            dataSize = diagnosticWavDataSize
+        )
+
+        Log.d(
+            tag,
+            "🎙️ Diagnostic WAV saved: ${file.absolutePath}"
+        )
+
+        Log.d(
+            tag,
+            "WAV data size: $diagnosticWavDataSize bytes"
+        )
+    }
+
+    private fun writeWavHeader(
+        file: File,
+        dataSize: Int
+    ) {
+
+        val sampleRate = 16000
+        val channels = 1
+        val bitsPerSample = 16
+
+        val byteRate =
+            sampleRate * channels * bitsPerSample / 8
+
+        val blockAlign =
+            channels * bitsPerSample / 8
+
+        val totalFileSize =
+            36 + dataSize
+
+        RandomAccessFile(file, "rw").use { raf ->
+
+            raf.seek(0)
+
+            raf.writeBytes("RIFF")
+            writeIntLE(raf, totalFileSize)
+
+            raf.writeBytes("WAVE")
+
+            raf.writeBytes("fmt ")
+            writeIntLE(raf, 16)
+
+            writeShortLE(raf, 1) // PCM
+            writeShortLE(raf, channels)
+
+            writeIntLE(raf, sampleRate)
+            writeIntLE(raf, byteRate)
+
+            writeShortLE(raf, blockAlign)
+            writeShortLE(raf, bitsPerSample)
+
+            raf.writeBytes("data")
+            writeIntLE(raf, dataSize)
+        }
+    }
+
+    private fun writeIntLE(
+        raf: RandomAccessFile,
+        value: Int
+    ) {
+        raf.write(
+            byteArrayOf(
+                (value and 0xFF).toByte(),
+                ((value shr 8) and 0xFF).toByte(),
+                ((value shr 16) and 0xFF).toByte(),
+                ((value shr 24) and 0xFF).toByte()
+            )
+        )
+    }
+
+    private fun writeShortLE(
+        raf: RandomAccessFile,
+        value: Int
+    ) {
+        raf.write(
+            byteArrayOf(
+                (value and 0xFF).toByte(),
+                ((value shr 8) and 0xFF).toByte()
+            )
+        )
+    }
     // ============================================================
     // AUDIO RECORD
     // ============================================================
@@ -417,6 +562,7 @@ class MainActivity : ComponentActivity() {
             )
 
         audioRecord!!.startRecording()
+        startDiagnosticRecording()
 
         isListening = true
 
@@ -486,6 +632,10 @@ class MainActivity : ComponentActivity() {
                 break
             }
 
+            if (count > 0) {
+                writeDiagnosticAudio(pcmBuffer, count)
+            }
+
             for (i in 0 until count) {
 
                 if (!isListening) {
@@ -552,7 +702,6 @@ class MainActivity : ComponentActivity() {
             "STFT frames: ${mel[0].size}"
         )
 
-
         val inputData = Array(1) {
             Array(1) {
                 Array(40) { melRow ->
@@ -568,74 +717,91 @@ class MainActivity : ComponentActivity() {
             inputData
         )
 
-        val result = ortSession!!.run(
-            mapOf("input" to inputTensor)
-        )
+        try {
 
-        ortSession?.let { session ->
+            ortSession?.let { session ->
 
-            val result = session.run(
-                mapOf("input" to inputTensor)
-            )
-
-            val output = result[0].value as Array<*>
-
-            val logits = output[0] as FloatArray
-
-            val probabilities = softmax(logits)
-
-            val negativeProbability = probabilities[0]
-            val kabaliProbability = probabilities[1]
-
-            Log.d(
-                tag,
-                "P(Negative)=$negativeProbability"
-            )
-
-            Log.d(
-                tag,
-                "P(Kabali)=$kabaliProbability"
-            )
-
-            if (diagnosticMode) {
-
-                Log.d(
-                    tag,
-                    "🔬 DIAGNOSTIC ONLY - NO WAKE TRIGGER"
+                val result = session.run(
+                    mapOf(
+                        "input" to inputTensor
+                    )
                 )
 
-            } else {
+                try {
 
-                if (kabaliProbability >= 0.50f) {
+                    val output =
+                        result[0].value as Array<*>
+
+                    val logits =
+                        output[0] as FloatArray
+
+                    val probabilities =
+                        softmax(logits)
+
+                    val negativeProbability =
+                        probabilities[0]
+
+                    val kabaliProbability =
+                        probabilities[1]
 
                     Log.d(
                         tag,
-                        "🔥 KABALI DETECTED!"
+                        "P(Negative)=$negativeProbability"
                     )
 
-                    wakeWordTriggered = true
+                    Log.d(
+                        tag,
+                        "P(Kabali)=$kabaliProbability"
+                    )
 
-                    mainHandler.post {
+                    if (diagnosticMode) {
 
-                        assistantState =
-                            AssistantState.LISTENING_FOR_COMMAND
-
-                        stopMicrophone()
-
-                        mainHandler.postDelayed(
-                            {
-                                startSpeechRecognition()
-                            },
-                            250
+                        Log.d(
+                            tag,
+                            "🔬 DIAGNOSTIC ONLY - NO WAKE TRIGGER"
                         )
+
+                    } else {
+
+                        if (
+                            kabaliProbability >=
+                            kabaliThreshold
+                        ) {
+
+                            Log.d(
+                                tag,
+                                "🔥 KABALI DETECTED!"
+                            )
+
+                            wakeWordTriggered = true
+
+                            mainHandler.post {
+
+                                assistantState =
+                                    AssistantState.LISTENING_FOR_COMMAND
+
+                                stopMicrophone()
+
+                                mainHandler.postDelayed(
+                                    {
+                                        startSpeechRecognition()
+                                    },
+                                    250
+                                )
+                            }
+                        }
                     }
+
+                } finally {
+
+                    result.close()
                 }
             }
 
-            result.close()
-        }
+        } finally {
 
-        inputTensor.close()
+            inputTensor.close()
+        }
     }
     private fun softmax(logits: FloatArray): FloatArray {
         val maxLogit = logits.maxOrNull() ?: 0f
@@ -1115,6 +1281,8 @@ class MainActivity : ComponentActivity() {
         )
 
         isListening = false
+
+        stopDiagnosticRecording()
 
         try {
 
