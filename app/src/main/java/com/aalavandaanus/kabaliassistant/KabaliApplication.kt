@@ -8,9 +8,19 @@ import com.aalavandaanus.kabaliassistant.core.scheduling.ScheduledEventHandlerRe
 import com.aalavandaanus.kabaliassistant.core.scheduling.Scheduler
 import com.aalavandaanus.kabaliassistant.data.alarms.AlarmRepository
 import com.aalavandaanus.kabaliassistant.data.alarms.RoomAlarmRepository
+import com.aalavandaanus.kabaliassistant.data.birthdays.BirthdayRepository
+import com.aalavandaanus.kabaliassistant.data.birthdays.RoomBirthdayRepository
 import com.aalavandaanus.kabaliassistant.data.database.KabaliDatabase
+import com.aalavandaanus.kabaliassistant.data.reminders.ReminderRepository
+import com.aalavandaanus.kabaliassistant.data.reminders.RoomReminderRepository
+import com.aalavandaanus.kabaliassistant.data.settings.AppSettingsRepository
+import com.aalavandaanus.kabaliassistant.data.settings.SharedPreferencesAppSettingsRepository
 import com.aalavandaanus.kabaliassistant.features.alarms.AlarmScheduledEventHandler
 import com.aalavandaanus.kabaliassistant.features.alarms.AlarmService
+import com.aalavandaanus.kabaliassistant.features.birthdays.BirthdayScheduledEventHandler
+import com.aalavandaanus.kabaliassistant.features.birthdays.BirthdayService
+import com.aalavandaanus.kabaliassistant.features.reminders.ReminderScheduledEventHandler
+import com.aalavandaanus.kabaliassistant.features.reminders.ReminderService
 
 class KabaliApplication : Application() {
 
@@ -20,10 +30,25 @@ class KabaliApplication : Application() {
     lateinit var alarmRepository: AlarmRepository
         private set
 
+    lateinit var reminderRepository: ReminderRepository
+        private set
+
+    lateinit var birthdayRepository: BirthdayRepository
+        private set
+
+    lateinit var appSettingsRepository: AppSettingsRepository
+        private set
+
     lateinit var scheduler: Scheduler
         private set
 
     lateinit var alarmService: AlarmService
+        private set
+
+    lateinit var reminderService: ReminderService
+        private set
+
+    lateinit var birthdayService: BirthdayService
         private set
 
     lateinit var scheduledEventHandlerRegistry:
@@ -33,37 +58,67 @@ class KabaliApplication : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        // 1. Database
         database = Room.databaseBuilder(
             applicationContext,
             KabaliDatabase::class.java,
             DATABASE_NAME
-        ).build()
+        )
+            .addMigrations(
+                KabaliDatabase.MIGRATION_1_2,
+                KabaliDatabase.MIGRATION_2_3
+            )
+            .build()
 
-        // 2. Repository
         alarmRepository = RoomAlarmRepository(
             alarmDao = database.alarmDao()
         )
 
-        // 3. Core scheduler
+        reminderRepository = RoomReminderRepository(
+            reminderDao = database.reminderDao()
+        )
+
+        birthdayRepository = RoomBirthdayRepository(
+            birthdayDao = database.birthdayDao()
+        )
+
+        appSettingsRepository =
+            SharedPreferencesAppSettingsRepository(
+                context = applicationContext
+            )
+
         scheduler = AlarmManagerScheduler(
             context = applicationContext
         )
 
-        // 4. Feature service
         alarmService = AlarmService(
             alarmRepository = alarmRepository,
             scheduler = scheduler
         )
 
-        // 5. Scheduled-event handlers
+        reminderService = ReminderService(
+            reminderRepository = reminderRepository,
+            scheduler = scheduler
+        )
+
+        birthdayService = BirthdayService(
+            birthdayRepository = birthdayRepository,
+            scheduler = scheduler,
+            settingsRepository = appSettingsRepository
+        )
+
         val handlers = setOf<ScheduledEventHandler>(
             AlarmScheduledEventHandler(
                 alarmRepository = alarmRepository
+            ),
+            ReminderScheduledEventHandler(
+                reminderRepository = reminderRepository
+            ),
+            BirthdayScheduledEventHandler(
+                birthdayRepository = birthdayRepository,
+                settingsRepository = appSettingsRepository
             )
         )
 
-        // 6. Handler registry
         scheduledEventHandlerRegistry =
             ScheduledEventHandlerRegistry(
                 handlers = handlers
@@ -71,6 +126,7 @@ class KabaliApplication : Application() {
     }
 
     companion object {
-        private const val DATABASE_NAME = "kabali_assistant.db"
+        private const val DATABASE_NAME =
+            "kabali_assistant.db"
     }
 }

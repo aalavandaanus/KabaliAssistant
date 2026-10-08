@@ -61,6 +61,7 @@ dependencies {
     implementation(
         libs.androidx.activity.compose
     )
+    implementation(libs.androidx.compose.foundation)
 
     implementation(
         libs.androidx.compose.material3
@@ -113,6 +114,7 @@ dependencies {
     implementation(
         libs.androidx.room.ktx
     )
+    implementation(libs.androidx.rules)
 
     ksp(
         libs.androidx.room.compiler
@@ -126,6 +128,7 @@ dependencies {
         libs.onnxruntime
     )
 
+    implementation(libs.androidx.lifecycle.runtime.compose)
     // ----------------------------------------------------
     // Unit Tests
     // ----------------------------------------------------

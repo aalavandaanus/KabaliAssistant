@@ -3,6 +3,7 @@ package com.aalavandaanus.kabaliassistant
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.navigation.compose.rememberNavController
 import com.aalavandaanus.kabaliassistant.navigation.AppNavigation
 import com.aalavandaanus.kabaliassistant.ui.theme.KabaliAssistantTheme
 
@@ -20,9 +21,13 @@ class MainActivity : ComponentActivity() {
 
         setContent {
 
+            val navController =
+                rememberNavController()
+
             KabaliAssistantTheme {
 
                 AppNavigation(
+                    navController = navController,
                     application = application
                 )
             }

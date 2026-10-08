@@ -13,6 +13,8 @@ navigationCompose = "2.10.2"
 room = "2.8.5"
 ksp = "2.2.10-2.0.2"
 composeUiTestJunit4 = "1.9.0"
+foundation = "1.12.1"
+rules = "1.7.0"
 
 [libraries]
 androidx-compose-material-icons-extended = { module = "androidx.compose.material:material-icons-extended", version.ref = "materialIconsExtended" }
@@ -40,8 +42,12 @@ androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
 
+androidx-lifecycle-runtime-compose = {module = "androidx.lifecycle:lifecycle-runtime-compose",version.ref = "lifecycleRuntimeKtx"}
+
 junit = { module = "junit:junit", version.ref = "junit" }
 onnxruntime = { group = "com.microsoft.onnxruntime", name = "onnxruntime-android", version = "1.30.0" }
+androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundation" }
+androidx-rules = { group = "androidx.test", name = "rules", version.ref = "rules" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
