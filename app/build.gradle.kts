@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.google.services)
 }
 
 android {
@@ -129,6 +130,16 @@ dependencies {
     )
 
     implementation(libs.androidx.lifecycle.runtime.compose)
+    // Google sign-in using Credential Manager
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
+    // Firebase Authentication
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+    implementation(libs.coil.compose)
+
+// Google sign-in using Credential Manager
     // ----------------------------------------------------
     // Unit Tests
     // ----------------------------------------------------

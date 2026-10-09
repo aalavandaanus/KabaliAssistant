@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Divider
@@ -16,6 +17,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.filled.Person
 
 @Composable
 fun NavigationDrawer(
@@ -23,6 +25,7 @@ fun NavigationDrawer(
     onNavigate: (String) -> Unit
 ) {
     ModalDrawerSheet {
+
 
         Column(
             modifier = Modifier.fillMaxWidth()
@@ -111,6 +114,44 @@ fun NavigationDrawer(
                 )
             )
 
+            NavigationDrawerItem(
+                label = {
+                    Text("Profile")
+                },
+                selected = currentRoute == Routes.PROFILE,
+                onClick = {
+                    onNavigate(Routes.PROFILE)
+                },
+                icon = {
+                    androidx.compose.material3.Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = "Profile"
+                    )
+                },
+                modifier = Modifier.padding(
+                    horizontal = 12.dp
+                )
+            )
+
+            NavigationDrawerItem(
+                label = {
+                    Text("Listening")
+                },
+                selected = currentRoute == Routes.LISTENING,
+                onClick = {
+                    onNavigate(Routes.LISTENING)
+                },
+                icon = {
+                    androidx.compose.material3.Icon(
+                        imageVector = Icons.Default.Mic,
+                        contentDescription = "Listening"
+                    )
+                },
+                modifier = Modifier.padding(
+                    horizontal = 12.dp
+                )
+            )
+
             Divider(
                 modifier = Modifier.padding(
                     vertical = 8.dp
@@ -137,4 +178,6 @@ fun NavigationDrawer(
             )
         }
     }
+
+
 }

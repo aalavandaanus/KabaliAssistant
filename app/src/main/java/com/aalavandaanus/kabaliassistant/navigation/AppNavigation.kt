@@ -37,6 +37,7 @@ import com.aalavandaanus.kabaliassistant.features.birthdays.BirthdayViewModel
 import com.aalavandaanus.kabaliassistant.features.birthdays.BirthdayViewModelFactory
 import com.aalavandaanus.kabaliassistant.features.birthdays.EditBirthdayScreen
 import com.aalavandaanus.kabaliassistant.features.home.HomeScreen
+import com.aalavandaanus.kabaliassistant.features.listening.ListeningScreen
 import com.aalavandaanus.kabaliassistant.features.reminders.AddReminderScreen
 import com.aalavandaanus.kabaliassistant.features.reminders.EditReminderScreen
 import com.aalavandaanus.kabaliassistant.features.reminders.ReminderListScreen
@@ -44,8 +45,11 @@ import com.aalavandaanus.kabaliassistant.features.reminders.ReminderViewModel
 import com.aalavandaanus.kabaliassistant.features.reminders.ReminderViewModelFactory
 import com.aalavandaanus.kabaliassistant.features.settings.SettingsScreen
 import kotlinx.coroutines.launch
+import com.aalavandaanus.kabaliassistant.features.profile.ProfileScreen
 
 object Routes {
+
+
 
     const val HOME = "home"
 
@@ -63,6 +67,11 @@ object Routes {
 
     const val SETTINGS = "settings"
 
+    const val LISTENING = "listening"
+
+    const val PROFILE = "profile"
+
+
     fun editAlarm(alarmId: Long) =
         "edit_alarm/$alarmId"
 
@@ -71,6 +80,8 @@ object Routes {
 
     fun editBirthday(birthdayId: Long) =
         "edit_birthday/$birthdayId"
+
+
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -81,6 +92,7 @@ fun AppNavigation(
 ) {
     val drawerState =
         rememberDrawerState(DrawerValue.Closed)
+
 
     val scope =
         rememberCoroutineScope()
@@ -113,6 +125,12 @@ fun AppNavigation(
 
             currentRoute == Routes.SETTINGS ->
                 Routes.SETTINGS
+
+            currentRoute == Routes.LISTENING ->
+                Routes.LISTENING
+
+            currentRoute == Routes.PROFILE ->
+                Routes.PROFILE
 
             else ->
                 null
@@ -170,6 +188,12 @@ fun AppNavigation(
                                 Routes.SETTINGS ->
                                     "Settings"
 
+                                Routes.LISTENING ->
+                                    "Listening"
+
+                                Routes.PROFILE ->
+                                    "My Profile"
+
                                 else ->
                                     "Kabali Assistant"
                             }
@@ -205,9 +229,35 @@ fun AppNavigation(
                 // HOME
                 // ---------------------------------------------------------
 
+
                 composable(Routes.HOME) {
 
-                    HomeScreen()
+                    HomeScreen(
+                        onOpenAlarms = {
+                            navController.navigate(Routes.ALARMS)
+                        },
+                        onOpenReminders = {
+                            navController.navigate(Routes.REMINDERS)
+                        },
+                        onOpenListening = {
+                            navController.navigate(Routes.LISTENING)
+                        },
+                        onOpenBirthdays = {
+                            navController.navigate(Routes.BIRTHDAYS)
+                        },
+                        onOpenSettings = {
+                            navController.navigate(Routes.SETTINGS)
+                        }
+                    )
+                }
+
+                // ---------------------------------------------------------
+                // LISTENING
+                // ---------------------------------------------------------
+
+                composable(Routes.LISTENING) {
+
+                    ListeningScreen()
                 }
 
                 // ---------------------------------------------------------
@@ -508,12 +558,25 @@ fun AppNavigation(
                 composable(Routes.SETTINGS) {
 
                     SettingsScreen(
-                        settingsRepository = application.appSettingsRepository,
-                        birthdayService = application.birthdayService,
-                        onBack = { navController.popBackStack() }
+                        settingsRepository =
+                            application.appSettingsRepository,
+                        birthdayService =
+                            application.birthdayService,
+                        onBack = {
+                            navController.popBackStack()
+                        }
                     )
+                }
+
+                // ---------------------------------------------------------
+                // PROFILE
+                // ---------------------------------------------------------
+                composable(Routes.PROFILE) {
+                    ProfileScreen()
                 }
             }
         }
     }
+
+
 }

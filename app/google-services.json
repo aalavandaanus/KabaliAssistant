@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "931208288104",
+    "project_id": "kabaliassistant-34f25",
+    "storage_bucket": "kabaliassistant-34f25.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:931208288104:android:a15ef5a8942ec34ab0e8dd",
+        "android_client_info": {
+          "package_name": "com.aalavandaanus.kabaliassistant"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "931208288104-ofrsoa4lhoec0kt4p7mivgb4qulj446c.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.aalavandaanus.kabaliassistant",
+            "certificate_hash": "70bb46153f191da5352e03c4afca4857254dbdae"
+          }
+        },
+        {
+          "client_id": "931208288104-rid1p6mrhrfqku53i1uijs2bha1dtov1.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyATboEelcDn1ma1-28x6K0dtWQleVrUxAw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "931208288104-rid1p6mrhrfqku53i1uijs2bha1dtov1.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

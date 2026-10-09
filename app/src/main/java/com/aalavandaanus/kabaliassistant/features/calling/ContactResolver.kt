@@ -1,11 +1,5 @@
 package com.aalavandaanus.kabaliassistant.features.calling
 
-data class Contact(
-    val id: Long,
-    val displayName: String,
-    val phoneNumber: String
-)
-
 sealed interface ContactResolutionResult {
 
     data class Found(
@@ -19,9 +13,16 @@ sealed interface ContactResolutionResult {
     data object NotFound : ContactResolutionResult
 }
 
-class ContactResolver {
-
+interface ContactResolver {
     fun resolve(
+        spokenName: String,
+        contacts: List<Contact>
+    ): ContactResolutionResult
+}
+
+class DefaultContactResolver : ContactResolver {
+
+    override fun resolve(
         spokenName: String,
         contacts: List<Contact>
     ): ContactResolutionResult {
@@ -32,52 +33,47 @@ class ContactResolver {
             return ContactResolutionResult.NotFound
         }
 
-        /*
-         * 1. Exact full-name match.
-         *
-         * Example:
-         * "ACC Muthu" -> "ACC Muthu"
-         */
         val exactMatches = contacts.filter {
             normalize(it.displayName) == query
         }
 
-        if (exactMatches.size == 1) {
-            return ContactResolutionResult.Found(exactMatches.first())
+        if (exactMatches.isNotEmpty()) {
+            return resolveMatches(exactMatches)
         }
 
-        if (exactMatches.size > 1) {
-            return ContactResolutionResult.Ambiguous(exactMatches)
+        val queryWords = query.split(" ")
+
+        val matches = contacts.filter { contact ->
+            val contactWords = normalize(contact.displayName)
+                .split(" ")
+
+            // Every spoken word must exist as a complete word
+            // in the contact's display name.
+            queryWords.all { it in contactWords }
         }
 
-        /*
-         * 2. Match the person's name after a context prefix.
-         *
-         * Example:
-         * "Muthu" -> "ACC Muthu"
-         * "Santhosh" -> "REL Santhosh"
-         */
-        val suffixMatches = contacts.filter {
-            val name = normalize(it.displayName)
-
-            name.endsWith(" $query")
+        return when (matches.size) {
+            0 -> ContactResolutionResult.NotFound
+            1 -> ContactResolutionResult.Found(matches.first())
+            else -> ContactResolutionResult.Ambiguous(matches)
         }
+    }
 
-        if (suffixMatches.size == 1) {
-            return ContactResolutionResult.Found(suffixMatches.first())
+    private fun resolveMatches(
+        matches: List<Contact>
+    ): ContactResolutionResult {
+        return if (matches.size == 1) {
+            ContactResolutionResult.Found(matches.first())
+        } else {
+            ContactResolutionResult.Ambiguous(matches)
         }
-
-        if (suffixMatches.size > 1) {
-            return ContactResolutionResult.Ambiguous(suffixMatches)
-        }
-
-        return ContactResolutionResult.NotFound
     }
 
     private fun normalize(value: String): String {
         return value
             .trim()
-            .replace(Regex("\\s+"), " ")
             .lowercase()
+            .replace(Regex("[^\\p{L}\\p{N}\\s]"), " ")
+            .replace(Regex("\\s+"), " ")
     }
 }
