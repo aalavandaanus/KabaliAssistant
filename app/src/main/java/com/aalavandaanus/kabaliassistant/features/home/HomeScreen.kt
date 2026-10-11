@@ -51,6 +51,16 @@ import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
+import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.compose.foundation.layout.ColumnScope
+import java.text.SimpleDateFormat
+import java.util.Date
+import androidx.compose.ui.text.intl.Locale
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.RowScope
 
 private val KabaliNavy = Color(0xFF0B1120)
 private val KabaliSurface = Color(0xFF151F33)
@@ -62,12 +72,33 @@ private val KabaliMuted = Color(0xFF9CAFC8)
 
 @Composable
 fun HomeScreen(
+    viewModel: HomeViewModel,
     onOpenAlarms: () -> Unit = {},
     onOpenReminders: () -> Unit = {},
     onOpenListening: () -> Unit = {},
     onOpenBirthdays: () -> Unit = {},
     onOpenSettings: () -> Unit = {}
 ) {
+    val dashboardState: HomeDashboardState by
+    viewModel.dashboardState.collectAsState()
+    val platformLocale = Locale.current.platformLocale
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    DisposableEffect(lifecycleOwner, viewModel) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.refresh()
+            }
+        }
+
+        lifecycleOwner.lifecycle.addObserver(observer)
+
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
 
     val greeting = when (hour) {
@@ -82,10 +113,9 @@ fun HomeScreen(
             .background(KabaliNavy)
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+        verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        // Welcome header
-        // Welcome header and account avatar
+        // Welcome header and existing Google account avatar
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -112,62 +142,71 @@ fun HomeScreen(
             HomeAccountAvatar()
         }
 
-        // Assistant panel
+
+        // Kabali assistant card
+
+        // Compact Kabali assistant card
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(28.dp),
+            shape = RoundedCornerShape(22.dp),
             color = KabaliSurface
         ) {
-            Column(
-                modifier = Modifier.padding(22.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+            Row(
+                modifier = Modifier.padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(94.dp)
-                        .background(
-                            color = KabaliSurfaceLight,
-                            shape = CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "K",
-                        fontSize = 42.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = KabaliCyan
-                    )
-                }
-
-                Text(
-                    text = "I'm Kabali",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = KabaliText,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Text(
-                    text = "Your personal assistant",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = KabaliMuted
-                )
-
-                Surface(
-                    shape = RoundedCornerShape(50.dp),
-                    color = Color(0xFF193B3B)
+                // Kabali identity and salutation — left
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Row(
-                        modifier = Modifier.padding(
-                            horizontal = 14.dp,
-                            vertical = 8.dp
-                        ),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(8.dp)
+                                .size(48.dp)
+                                .background(
+                                    color = KabaliSurfaceLight,
+                                    shape = CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "K",
+                                fontSize = 26.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = KabaliCyan
+                            )
+                        }
+
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Text(
+                                text = "I'm Kabali",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = KabaliText,
+                                fontWeight = FontWeight.Bold
+                            )
+
+                            Text(
+                                text = "Your personal assistant",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = KabaliMuted
+                            )
+                        }
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(7.dp)
                                 .background(
                                     color = KabaliCyan,
                                     shape = CircleShape
@@ -176,131 +215,290 @@ fun HomeScreen(
 
                         Text(
                             text = "Ready to help",
-                            color = KabaliCyan,
-                            style = MaterialTheme.typography.labelLarge
+                            style = MaterialTheme.typography.labelSmall,
+                            color = KabaliCyan
                         )
                     }
                 }
 
-                Text(
-                    text = "Open Listening to interact with Kabali",
-                    color = KabaliMuted,
-                    style = MaterialTheme.typography.bodySmall
-                )
-
+                // Listening action — right
                 Surface(
                     modifier = Modifier
-                        .fillMaxWidth()
+                        .width(88.dp)
+                        .height(76.dp)
                         .clickable(onClick = onOpenListening),
                     shape = RoundedCornerShape(16.dp),
                     color = Color(0xFF164E63)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
                         Text(
-                            text = "🎙️  Open Listening",
+                            text = "🎙️",
+                            style = MaterialTheme.typography.titleLarge
+                        )
+
+                        Text(
+                            text = "Listen",
                             color = Color.White,
                             fontWeight = FontWeight.SemiBold,
-                            style = MaterialTheme.typography.titleMedium
+                            style = MaterialTheme.typography.labelLarge
                         )
                     }
                 }
             }
         }
-
-        // Quick actions
-        Column(
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+// Reminders — full width
+        DashboardInfoCard(
+            title = "REMINDERS",
+            emoji = "📝",
+            accent = KabaliPurple,
+            onClick = onOpenReminders
         ) {
-            Text(
-                text = "Quick actions",
-                style = MaterialTheme.typography.titleLarge,
-                color = KabaliText,
-                fontWeight = FontWeight.Bold
-            )
+            val reminder = dashboardState.upcomingReminder
+            val overdue = dashboardState.overdueReminderCount
 
-            Text(
-                text = "Your everyday essentials, all in one place.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = KabaliMuted
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                QuickActionCard(
-                    modifier = Modifier.weight(1f),
-                    emoji = "⏰",
-                    title = "Alarms",
-                    subtitle = "Wake up on time",
-                    accent = KabaliCyan,
-                    onClick = onOpenAlarms
-                )
-
-                QuickActionCard(
-                    modifier = Modifier.weight(1f),
-                    emoji = "📅",
-                    title = "Reminders",
-                    subtitle = "Remember your tasks",
-                    accent = KabaliPurple,
-                    onClick = onOpenReminders
-                )
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                QuickActionCard(
-                    modifier = Modifier.weight(1f),
-                    emoji = "🎂",
-                    title = "Birthdays",
-                    subtitle = "Celebrate your people",
-                    accent = KabaliPurple,
-                    onClick = onOpenBirthdays
-                )
-
-                QuickActionCard(
-                    modifier = Modifier.weight(1f),
-                    emoji = "⚙️",
-                    title = "Settings",
-                    subtitle = "Personalize Kabali",
-                    accent = KabaliCyan,
-                    onClick = onOpenSettings
-                )
-            }
-        }
-
-        // Footer
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(18.dp),
-            color = KabaliSurface
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(5.dp)
-            ) {
+            if (reminder == null && overdue == 0) {
                 Text(
-                    text = "Small things, made simpler.",
-                    color = KabaliText,
-                    fontWeight = FontWeight.SemiBold,
-                    style = MaterialTheme.typography.titleSmall
-                )
-
-                Text(
-                    text = "Kabali is here to help you manage your day.",
+                    text = "You're all caught up. No upcoming reminders.",
                     color = KabaliMuted,
-                    style = MaterialTheme.typography.bodySmall
+                    style = MaterialTheme.typography.bodyMedium
                 )
+            } else {
+                if (reminder != null) {
+                    Text(
+                        text = reminder.title,
+                        color = KabaliText,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+
+                    Text(
+                        text = SimpleDateFormat(
+                            "EEE, MMM d · h:mm a",
+                            platformLocale
+                        ).format(Date(reminder.triggerAtMillis)),
+                        color = KabaliPurple,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+
+                if (overdue > 0) {
+                    Text(
+                        text = "$overdue overdue reminder${if (overdue == 1) "" else "s"}",
+                        color = KabaliCyan,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+// Next Alarm + Upcoming Birthday — two columns
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            DashboardInfoCard(
+                modifier = Modifier.weight(1f),
+                title = "NEXT ALARM",
+                emoji = "⏰",
+                accent = KabaliCyan,
+                onClick = onOpenAlarms
+            ) {
+                val alarm = dashboardState.nextAlarm
+
+                if (alarm == null) {
+                    Text(
+                        text = "No enabled alarms",
+                        color = KabaliMuted,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                } else {
+                    Text(
+                        text = alarm.label,
+                        color = KabaliText,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+
+                    Text(
+                        text = SimpleDateFormat(
+                            "EEE, MMM d",
+                            platformLocale
+                        ).format(Date(alarm.triggerAtMillis)),
+                        color = KabaliCyan,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+
+                    Text(
+                        text = SimpleDateFormat(
+                            "h:mm a",
+                            platformLocale
+                        ).format(Date(alarm.triggerAtMillis)),
+                        color = KabaliText,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            DashboardInfoCard(
+                modifier = Modifier.weight(1f),
+                title = "BIRTHDAYS",
+                emoji = "🎂",
+                accent = KabaliPurple,
+                onClick = onOpenBirthdays
+            ) {
+                val birthday = dashboardState.nearestBirthday
+
+                if (birthday == null) {
+                    Text(
+                        text = "No birthdays added",
+                        color = KabaliMuted,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                } else {
+                    Text(
+                        text = birthday.name,
+                        color = KabaliText,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+
+                    Text(
+                        text = when (birthday.daysUntilBirthday) {
+                            0 -> "Today! 🎉"
+                            1 -> "Tomorrow"
+                            else -> "In ${birthday.daysUntilBirthday} days"
+                        },
+                        color = KabaliPurple,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+
+                    Text(
+                        text = SimpleDateFormat(
+                            "MMM d",
+                            platformLocale
+                        ).format(Date(birthday.nextBirthdayAtMillis)),
+                        color = KabaliMuted,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        }
+
+
+        // Compact quick actions
+        Text(
+            text = "Quick actions",
+            style = MaterialTheme.typography.titleLarge,
+            color = KabaliText,
+            fontWeight = FontWeight.Bold
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            QuickActionCard(
+                modifier = Modifier.weight(1f),
+                emoji = "⏰",
+                title = "Alarms",
+                accent = KabaliCyan,
+                onClick = onOpenAlarms
+            )
+
+            QuickActionCard(
+                modifier = Modifier.weight(1f),
+                emoji = "📝",
+                title = "Reminders",
+                accent = KabaliPurple,
+                onClick = onOpenReminders
+            )
+
+            QuickActionCard(
+                modifier = Modifier.weight(1f),
+                emoji = "🎂",
+                title = "Birthdays",
+                accent = KabaliCyan,
+                onClick = onOpenBirthdays
+            )
+
+            QuickActionCard(
+                modifier = Modifier.weight(1f),
+                emoji = "🎙️",
+                title = "Listen",
+                accent = KabaliPurple,
+                onClick = onOpenListening
+            )
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+    }
+}
+
+@Composable
+private fun DashboardInfoCard(
+    title: String,
+    emoji: String,
+    accent: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(22.dp),
+        color = KabaliSurface
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .background(
+                            color = KabaliSurfaceLight,
+                            shape = RoundedCornerShape(14.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = emoji,
+                        fontSize = 21.sp
+                    )
+                }
+
+                Text(
+                    text = title,
+                    color = accent,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                Text(
+                    text = "›",
+                    color = accent,
+                    fontSize = 26.sp
+                )
+            }
+
+            content()
+        }
     }
 }
 
@@ -309,62 +507,40 @@ private fun QuickActionCard(
     modifier: Modifier = Modifier,
     emoji: String,
     title: String,
-    subtitle: String,
     accent: Color,
     onClick: () -> Unit
 ) {
-    Card(
+    Surface(
         modifier = modifier
-            .height(148.dp)
+            .height(92.dp)
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = KabaliSurface
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 0.dp
-        )
+        shape = RoundedCornerShape(18.dp),
+        color = KabaliSurface
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(14.dp),
-            verticalArrangement = Arrangement.SpaceBetween
+                .padding(vertical = 12.dp, horizontal = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .background(
-                        color = KabaliSurfaceLight,
-                        shape = RoundedCornerShape(14.dp)
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = emoji,
-                    fontSize = 21.sp
-                )
-            }
+            Text(
+                text = emoji,
+                fontSize = 22.sp
+            )
 
-            Column(
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    text = title,
-                    color = accent,
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleMedium
-                )
-
-                Text(
-                    text = subtitle,
-                    color = KabaliMuted,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
+            Text(
+                text = title,
+                color = accent,
+                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
+
 @Composable
 private fun HomeAccountAvatar() {
     val context = LocalContext.current

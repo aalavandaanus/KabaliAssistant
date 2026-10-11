@@ -34,6 +34,9 @@ import com.aalavandaanus.kabaliassistant.data.reminders.Reminder
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.core.os.ConfigurationCompat
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,7 +48,10 @@ fun EditReminderScreen(
     onCancel: () -> Unit
 ) {
     val context = LocalContext.current
-
+    val configuration = LocalConfiguration.current
+    val locale = remember(configuration) {
+        ConfigurationCompat.getLocales(configuration)[0] ?: Locale.getDefault()
+    }
     val initialCalendar = remember(reminder.id) {
         Calendar.getInstance().apply {
             timeInMillis = reminder.triggerAtMillis
@@ -172,7 +178,7 @@ fun EditReminderScreen(
                 Text(
                     SimpleDateFormat(
                         "EEE, MMM d, yyyy",
-                        Locale.getDefault()
+                        locale
                     ).format(selectedDateTime.time)
                 )
             }
@@ -196,7 +202,7 @@ fun EditReminderScreen(
                 Text(
                     SimpleDateFormat(
                         "h:mm a",
-                        Locale.getDefault()
+                        locale
                     ).format(selectedDateTime.time)
                 )
             }

@@ -46,6 +46,8 @@ import com.aalavandaanus.kabaliassistant.features.reminders.ReminderViewModelFac
 import com.aalavandaanus.kabaliassistant.features.settings.SettingsScreen
 import kotlinx.coroutines.launch
 import com.aalavandaanus.kabaliassistant.features.profile.ProfileScreen
+import com.aalavandaanus.kabaliassistant.features.home.HomeViewModel
+import com.aalavandaanus.kabaliassistant.features.home.HomeViewModelFactory
 
 object Routes {
 
@@ -152,11 +154,11 @@ fun AppNavigation(
                         navController.navigate(route) {
 
                             popUpTo(Routes.HOME) {
-                                saveState = true
+                                saveState = false
                             }
 
                             launchSingleTop = true
-                            restoreState = true
+                            restoreState = false
                         }
                     }
                 )
@@ -230,9 +232,20 @@ fun AppNavigation(
                 // ---------------------------------------------------------
 
 
+
                 composable(Routes.HOME) {
 
+                    val viewModel: HomeViewModel =
+                        viewModel(
+                            factory = HomeViewModelFactory(
+                                alarmRepository = application.alarmRepository,
+                                reminderRepository = application.reminderRepository,
+                                birthdayRepository = application.birthdayRepository
+                            )
+                        )
+
                     HomeScreen(
+                        viewModel = viewModel,
                         onOpenAlarms = {
                             navController.navigate(Routes.ALARMS)
                         },
