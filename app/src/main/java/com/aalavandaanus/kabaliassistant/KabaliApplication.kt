@@ -17,8 +17,8 @@ import com.aalavandaanus.kabaliassistant.data.settings.AppSettingsRepository
 import com.aalavandaanus.kabaliassistant.data.settings.SharedPreferencesAppSettingsRepository
 import com.aalavandaanus.kabaliassistant.features.alarms.AlarmScheduledEventHandler
 import com.aalavandaanus.kabaliassistant.features.alarms.AlarmService
-import com.aalavandaanus.kabaliassistant.features.birthdays.BirthdayScheduledEventHandler
 import com.aalavandaanus.kabaliassistant.features.birthdays.BirthdayService
+import com.aalavandaanus.kabaliassistant.features.birthdays.BirthdayWorkScheduler
 import com.aalavandaanus.kabaliassistant.features.reminders.ReminderScheduledEventHandler
 import com.aalavandaanus.kabaliassistant.features.reminders.ReminderService
 
@@ -101,9 +101,13 @@ class KabaliApplication : Application() {
         )
 
         birthdayService = BirthdayService(
-            birthdayRepository = birthdayRepository,
-            scheduler = scheduler,
-            settingsRepository = appSettingsRepository
+            birthdayRepository = birthdayRepository
+        )
+
+        BirthdayWorkScheduler.ensureScheduled(
+            context = applicationContext,
+            hour = appSettingsRepository.getBirthdayNotificationHour(),
+            minute = appSettingsRepository.getBirthdayNotificationMinute()
         )
 
         val handlers = setOf<ScheduledEventHandler>(
@@ -112,10 +116,6 @@ class KabaliApplication : Application() {
             ),
             ReminderScheduledEventHandler(
                 reminderRepository = reminderRepository
-            ),
-            BirthdayScheduledEventHandler(
-                birthdayRepository = birthdayRepository,
-                settingsRepository = appSettingsRepository
             )
         )
 

@@ -6,7 +6,6 @@ import android.app.Notification
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
-import androidx.annotation.RequiresPermission
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
@@ -15,7 +14,7 @@ class NotificationHelper(private val context: Context) { init {
     NotificationChannel.createChannels(context)
 }
 
-    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
+
     fun show(request: NotificationRequest) {
         if (!hasNotificationPermission()) {
             return
@@ -28,10 +27,23 @@ class NotificationHelper(private val context: Context) { init {
                 .setVisibility(request.lockScreenVisibility.toAndroidVisibility())
                 .setAutoCancel(request.autoCancel).setOngoing(request.ongoing)
                 .build()
-        NotificationManagerCompat.from(context).notify(
-            request.id.toInt(),
-            notification
-        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+
+        try {
+            NotificationManagerCompat.from(context).notify(
+                request.id.toInt(),
+                notification
+            )
+        } catch (e: SecurityException) {
+            // Permission may have changed between the check and notify().
+        }
     }
 
     fun cancel(notificationId: Long) {

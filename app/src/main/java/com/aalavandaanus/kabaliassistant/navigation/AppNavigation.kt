@@ -560,8 +560,6 @@ fun AppNavigation(
                     SettingsScreen(
                         settingsRepository =
                             application.appSettingsRepository,
-                        birthdayService =
-                            application.birthdayService,
                         onBack = {
                             navController.popBackStack()
                         }

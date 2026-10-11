@@ -13,26 +13,23 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.aalavandaanus.kabaliassistant.data.settings.AppSettingsRepository
-import com.aalavandaanus.kabaliassistant.features.birthdays.BirthdayService
-import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+import com.aalavandaanus.kabaliassistant.features.birthdays.BirthdayWorkScheduler
 
 @Composable
 fun SettingsScreen(
     settingsRepository: AppSettingsRepository,
-    birthdayService: BirthdayService,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
+
 
     var notificationHour by remember {
         mutableStateOf(
@@ -104,9 +101,11 @@ fun SettingsScreen(
                             minute
                         )
 
-                        coroutineScope.launch {
-                            birthdayService.rescheduleAll()
-                        }
+                        BirthdayWorkScheduler.reschedule(
+                            context = context,
+                            hour = hourOfDay,
+                            minute = minute
+                        )
                     },
                     notificationHour,
                     notificationMinute,
