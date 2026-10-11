@@ -29,15 +29,18 @@ class RoomReminderRepository(
         reminderDao.deleteReminder(reminder.toEntity())
     }
 
+
     private fun ReminderEntity.toDomain(): Reminder {
         return Reminder(
             id = id,
             title = title,
             message = message,
             triggerAtMillis = triggerAtMillis,
-            enabled = enabled
+            enabled = enabled,
+            completedAtMillis = completedAtMillis
         )
     }
+
 
     private fun Reminder.toEntity(): ReminderEntity {
         return ReminderEntity(
@@ -45,7 +48,8 @@ class RoomReminderRepository(
             title = title,
             message = message,
             triggerAtMillis = triggerAtMillis,
-            enabled = enabled
+            enabled = enabled,
+            completedAtMillis = completedAtMillis
         )
     }
 }

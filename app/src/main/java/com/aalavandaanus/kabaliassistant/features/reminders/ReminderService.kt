@@ -91,6 +91,64 @@ class ReminderService(
         )
     }
 
+
+
+    suspend fun markDone(reminder: Reminder): Boolean {
+        if (reminder.completedAtMillis != null) {
+            return true
+        }
+
+        scheduler.cancel(reminder.id)
+
+        val completedReminder = reminder.copy(
+            completedAtMillis = System.currentTimeMillis()
+        )
+
+        reminderRepository.updateReminder(completedReminder)
+
+        val savedReminder = reminderRepository.getReminderById(reminder.id)
+
+        android.util.Log.d(
+            "ReminderDebug",
+            "Done tapped: id=${reminder.id}, " +
+                    "savedCompletedAt=${savedReminder?.completedAtMillis}"
+        )
+
+        return savedReminder?.completedAtMillis != null
+    }
+
+
+
+    suspend fun undoCompletion(reminder: Reminder): Boolean {
+        if (reminder.completedAtMillis == null) {
+            return true
+        }
+
+        val restoredReminder = reminder.copy(
+            completedAtMillis = null
+        )
+
+        // A future reminder needs its notification scheduled again.
+        // A past reminder remains overdue without another notification.
+        if (
+            restoredReminder.enabled &&
+            restoredReminder.triggerAtMillis > System.currentTimeMillis()
+        ) {
+            val scheduled = scheduler.schedule(
+                ScheduleRequest(
+                    event = restoredReminder.toScheduledEvent()
+                )
+            )
+
+            if (!scheduled) {
+                return false
+            }
+        }
+
+        reminderRepository.updateReminder(restoredReminder)
+        return true
+    }
+
     suspend fun delete(reminder: Reminder) {
         scheduler.cancel(reminder.id)
         reminderRepository.deleteReminder(reminder)

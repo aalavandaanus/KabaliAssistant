@@ -1,3 +1,4 @@
+
 package com.aalavandaanus.kabaliassistant.data.reminders
 
 data class Reminder(
@@ -5,5 +6,6 @@ data class Reminder(
     val title: String,
     val message: String,
     val triggerAtMillis: Long,
-    val enabled: Boolean = true
+    val enabled: Boolean = true,
+    val completedAtMillis: Long? = null
 )

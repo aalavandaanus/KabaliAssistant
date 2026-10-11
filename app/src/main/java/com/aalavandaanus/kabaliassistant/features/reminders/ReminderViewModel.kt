@@ -66,4 +66,24 @@ class ReminderViewModel(
             onResult?.invoke()
         }
     }
+
+    fun markDone(
+        reminder: Reminder,
+        onResult: ((Boolean) -> Unit)? = null
+    ) {
+        viewModelScope.launch {
+            val result = reminderService.markDone(reminder)
+            onResult?.invoke(result)
+        }
+    }
+
+    fun undoCompletion(
+        reminder: Reminder,
+        onResult: ((Boolean) -> Unit)? = null
+    ) {
+        viewModelScope.launch {
+            val result = reminderService.undoCompletion(reminder)
+            onResult?.invoke(result)
+        }
+    }
 }

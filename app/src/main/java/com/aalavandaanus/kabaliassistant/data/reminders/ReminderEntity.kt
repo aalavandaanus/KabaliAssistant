@@ -1,3 +1,4 @@
+
 package com.aalavandaanus.kabaliassistant.data.reminders
 
 import androidx.room.Entity
@@ -10,5 +11,6 @@ data class ReminderEntity(
     val title: String,
     val message: String,
     val triggerAtMillis: Long,
-    val enabled: Boolean = true
+    val enabled: Boolean = true,
+    val completedAtMillis: Long? = null
 )

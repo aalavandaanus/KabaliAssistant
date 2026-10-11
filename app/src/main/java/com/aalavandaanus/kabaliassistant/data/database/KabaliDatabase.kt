@@ -17,7 +17,7 @@ import com.aalavandaanus.kabaliassistant.data.reminders.ReminderEntity
         ReminderEntity::class,
         BirthdayEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class KabaliDatabase : RoomDatabase() {
@@ -67,6 +67,20 @@ abstract class KabaliDatabase : RoomDatabase() {
                         reminderEnabled INTEGER NOT NULL
                     )
                     """.trimIndent()
+                )
+            }
+        }
+
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+
+            override fun migrate(
+                database: SupportSQLiteDatabase
+            ) {
+                database.execSQL(
+                    """
+            ALTER TABLE reminders
+            ADD COLUMN completedAtMillis INTEGER
+            """.trimIndent()
                 )
             }
         }

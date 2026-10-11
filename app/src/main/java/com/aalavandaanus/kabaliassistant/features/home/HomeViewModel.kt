@@ -77,7 +77,10 @@ internal fun calculateDashboard(
         }
         .minByOrNull { it.triggerAtMillis }
 
-    val enabledReminders = reminders.filter { it.enabled }
+
+    val enabledReminders = reminders.filter {
+        it.enabled && it.completedAtMillis == null
+    }
 
     val upcomingReminder = enabledReminders
         .filter { it.triggerAtMillis > nowMillis }

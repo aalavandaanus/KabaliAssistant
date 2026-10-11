@@ -63,9 +63,11 @@ class KabaliApplication : Application() {
             KabaliDatabase::class.java,
             DATABASE_NAME
         )
+
             .addMigrations(
                 KabaliDatabase.MIGRATION_1_2,
-                KabaliDatabase.MIGRATION_2_3
+                KabaliDatabase.MIGRATION_2_3,
+                KabaliDatabase.MIGRATION_3_4
             )
             .build()
 
