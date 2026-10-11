@@ -26,7 +26,8 @@ import com.aalavandaanus.kabaliassistant.features.birthdays.BirthdayWorkSchedule
 @Composable
 fun SettingsScreen(
     settingsRepository: AppSettingsRepository,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onOpenCapabilitySetup:()-> Unit
 ) {
     val context = LocalContext.current
 
@@ -120,6 +121,12 @@ fun SettingsScreen(
         Text(
             text = "Birthday reminders will be sent at this time during the birthday reminder window."
         )
+        Button(
+            onClick = onOpenCapabilitySetup,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Check Kabali Setup")
+        }
 
         Button(
             onClick = onBack,

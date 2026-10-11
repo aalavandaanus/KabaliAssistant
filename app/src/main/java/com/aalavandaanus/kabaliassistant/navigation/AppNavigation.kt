@@ -1,5 +1,7 @@
+
 package com.aalavandaanus.kabaliassistant.navigation
 
+import android.content.Context
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
@@ -16,8 +18,12 @@ import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -37,21 +43,20 @@ import com.aalavandaanus.kabaliassistant.features.birthdays.BirthdayViewModel
 import com.aalavandaanus.kabaliassistant.features.birthdays.BirthdayViewModelFactory
 import com.aalavandaanus.kabaliassistant.features.birthdays.EditBirthdayScreen
 import com.aalavandaanus.kabaliassistant.features.home.HomeScreen
+import com.aalavandaanus.kabaliassistant.features.home.HomeViewModel
+import com.aalavandaanus.kabaliassistant.features.home.HomeViewModelFactory
 import com.aalavandaanus.kabaliassistant.features.listening.ListeningScreen
+import com.aalavandaanus.kabaliassistant.features.profile.ProfileScreen
 import com.aalavandaanus.kabaliassistant.features.reminders.AddReminderScreen
 import com.aalavandaanus.kabaliassistant.features.reminders.EditReminderScreen
 import com.aalavandaanus.kabaliassistant.features.reminders.ReminderListScreen
 import com.aalavandaanus.kabaliassistant.features.reminders.ReminderViewModel
 import com.aalavandaanus.kabaliassistant.features.reminders.ReminderViewModelFactory
+import com.aalavandaanus.kabaliassistant.features.settings.CapabilitySetupScreen
 import com.aalavandaanus.kabaliassistant.features.settings.SettingsScreen
 import kotlinx.coroutines.launch
-import com.aalavandaanus.kabaliassistant.features.profile.ProfileScreen
-import com.aalavandaanus.kabaliassistant.features.home.HomeViewModel
-import com.aalavandaanus.kabaliassistant.features.home.HomeViewModelFactory
 
 object Routes {
-
-
 
     const val HOME = "home"
 
@@ -68,22 +73,16 @@ object Routes {
     const val EDIT_BIRTHDAY = "edit_birthday/{birthdayId}"
 
     const val SETTINGS = "settings"
+    const val CAPABILITY_SETUP = "capability_setup"
 
     const val LISTENING = "listening"
-
     const val PROFILE = "profile"
 
+    fun editAlarm(alarmId: Long) = "edit_alarm/$alarmId"
 
-    fun editAlarm(alarmId: Long) =
-        "edit_alarm/$alarmId"
+    fun editReminder(reminderId: Long) = "edit_reminder/$reminderId"
 
-    fun editReminder(reminderId: Long) =
-        "edit_reminder/$reminderId"
-
-    fun editBirthday(birthdayId: Long) =
-        "edit_birthday/$birthdayId"
-
-
+    fun editBirthday(birthdayId: Long) = "edit_birthday/$birthdayId"
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -92,67 +91,80 @@ fun AppNavigation(
     navController: NavHostController,
     application: KabaliApplication
 ) {
-    val drawerState =
-        rememberDrawerState(DrawerValue.Closed)
+    val context = LocalContext.current
 
+    val onboardingPreferences = remember(context) {
+        context.getSharedPreferences(
+            "kabali_onboarding",
+            Context.MODE_PRIVATE
+        )
+    }
 
-    val scope =
-        rememberCoroutineScope()
+    var onboardingComplete by remember {
+        mutableStateOf(
+            onboardingPreferences.getBoolean(
+                "capability_setup_completed",
+                false
+            )
+        )
+    }
 
-    val backStackEntry by
-    navController.currentBackStackEntryAsState()
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
 
-    val currentRoute =
-        backStackEntry?.destination?.route
+    val backStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = backStackEntry?.destination?.route
 
-    val drawerRoute =
-        when {
-            currentRoute == Routes.HOME ->
-                Routes.HOME
+    val isInitialSetup =
+        currentRoute == Routes.CAPABILITY_SETUP && !onboardingComplete
 
-            currentRoute == Routes.ALARMS ||
-                    currentRoute == Routes.ADD_ALARM ||
-                    currentRoute == Routes.EDIT_ALARM ->
-                Routes.ALARMS
+    val drawerRoute = when {
+        currentRoute == Routes.HOME ->
+            Routes.HOME
 
-            currentRoute == Routes.REMINDERS ||
-                    currentRoute == Routes.ADD_REMINDER ||
-                    currentRoute == Routes.EDIT_REMINDER ->
-                Routes.REMINDERS
+        currentRoute == Routes.ALARMS ||
+                currentRoute == Routes.ADD_ALARM ||
+                currentRoute == Routes.EDIT_ALARM ->
+            Routes.ALARMS
 
-            currentRoute == Routes.BIRTHDAYS ||
-                    currentRoute == Routes.ADD_BIRTHDAY ||
-                    currentRoute == Routes.EDIT_BIRTHDAY ->
-                Routes.BIRTHDAYS
+        currentRoute == Routes.REMINDERS ||
+                currentRoute == Routes.ADD_REMINDER ||
+                currentRoute == Routes.EDIT_REMINDER ->
+            Routes.REMINDERS
 
-            currentRoute == Routes.SETTINGS ->
-                Routes.SETTINGS
+        currentRoute == Routes.BIRTHDAYS ||
+                currentRoute == Routes.ADD_BIRTHDAY ||
+                currentRoute == Routes.EDIT_BIRTHDAY ->
+            Routes.BIRTHDAYS
 
-            currentRoute == Routes.LISTENING ->
-                Routes.LISTENING
+        currentRoute == Routes.SETTINGS ||
+                (currentRoute == Routes.CAPABILITY_SETUP &&
+                        onboardingComplete) ->
+            Routes.SETTINGS
 
-            currentRoute == Routes.PROFILE ->
-                Routes.PROFILE
+        currentRoute == Routes.LISTENING ->
+            Routes.LISTENING
 
-            else ->
-                null
-        }
+        currentRoute == Routes.PROFILE ->
+            Routes.PROFILE
+
+        else ->
+            null
+    }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
+        gesturesEnabled = onboardingComplete,
         drawerContent = {
             ModalDrawerSheet {
-
                 NavigationDrawer(
                     currentRoute = drawerRoute,
                     onNavigate = { route ->
-
                         scope.launch {
                             drawerState.close()
                         }
 
                         navController.navigate(route) {
-
                             popUpTo(Routes.HOME) {
                                 saveState = false
                             }
@@ -165,35 +177,34 @@ fun AppNavigation(
             }
         }
     ) {
-
         Scaffold(
             topBar = {
-
                 TopAppBar(
                     title = {
-
                         Text(
-                            when (drawerRoute) {
+                            when {
+                                isInitialSetup ->
+                                    "Set up Kabali"
 
-                                Routes.HOME ->
+                                drawerRoute == Routes.HOME ->
                                     "Home"
 
-                                Routes.ALARMS ->
+                                drawerRoute == Routes.ALARMS ->
                                     "Alarms"
 
-                                Routes.REMINDERS ->
+                                drawerRoute == Routes.REMINDERS ->
                                     "Reminders"
 
-                                Routes.BIRTHDAYS ->
+                                drawerRoute == Routes.BIRTHDAYS ->
                                     "Birthdays"
 
-                                Routes.SETTINGS ->
+                                drawerRoute == Routes.SETTINGS ->
                                     "Settings"
 
-                                Routes.LISTENING ->
+                                drawerRoute == Routes.LISTENING ->
                                     "Listening"
 
-                                Routes.PROFILE ->
+                                drawerRoute == Routes.PROFILE ->
                                     "My Profile"
 
                                 else ->
@@ -202,19 +213,19 @@ fun AppNavigation(
                         )
                     },
                     navigationIcon = {
-
-                        IconButton(
-                            onClick = {
-                                scope.launch {
-                                    drawerState.open()
+                        if (onboardingComplete) {
+                            IconButton(
+                                onClick = {
+                                    scope.launch {
+                                        drawerState.open()
+                                    }
                                 }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Menu,
+                                    contentDescription = "Menu"
+                                )
                             }
-                        ) {
-
-                            Icon(
-                                imageVector = Icons.Default.Menu,
-                                contentDescription = "Menu"
-                            )
                         }
                     }
                 )
@@ -223,18 +234,16 @@ fun AppNavigation(
 
             NavHost(
                 navController = navController,
-                startDestination = Routes.HOME,
+                startDestination = if (onboardingComplete) {
+                    Routes.HOME
+                } else {
+                    Routes.CAPABILITY_SETUP
+                },
                 modifier = Modifier.padding(paddingValues)
             ) {
 
-                // ---------------------------------------------------------
                 // HOME
-                // ---------------------------------------------------------
-
-
-
                 composable(Routes.HOME) {
-
                     val viewModel: HomeViewModel =
                         viewModel(
                             factory = HomeViewModelFactory(
@@ -264,21 +273,13 @@ fun AppNavigation(
                     )
                 }
 
-                // ---------------------------------------------------------
                 // LISTENING
-                // ---------------------------------------------------------
-
                 composable(Routes.LISTENING) {
-
                     ListeningScreen()
                 }
 
-                // ---------------------------------------------------------
                 // ALARMS
-                // ---------------------------------------------------------
-
                 composable(Routes.ALARMS) {
-
                     val viewModel: AlarmViewModel =
                         viewModel(
                             factory = AlarmViewModelFactory(
@@ -290,9 +291,7 @@ fun AppNavigation(
                     AlarmListScreen(
                         viewModel = viewModel,
                         onAddAlarm = {
-                            navController.navigate(
-                                Routes.ADD_ALARM
-                            )
+                            navController.navigate(Routes.ADD_ALARM)
                         },
                         onEditAlarm = { alarmId ->
                             navController.navigate(
@@ -303,7 +302,6 @@ fun AppNavigation(
                 }
 
                 composable(Routes.ADD_ALARM) {
-
                     val viewModel: AlarmViewModel =
                         viewModel(
                             factory = AlarmViewModelFactory(
@@ -331,10 +329,8 @@ fun AppNavigation(
                         }
                     )
                 ) { entry ->
-
                     val alarmId =
-                        entry.arguments
-                            ?.getLong("alarmId")
+                        entry.arguments?.getLong("alarmId")
                             ?: return@composable
 
                     val viewModel: AlarmViewModel =
@@ -345,16 +341,10 @@ fun AppNavigation(
                             )
                         )
 
-                    val alarms by
-                    viewModel.alarms.collectAsState()
-
-                    val alarm =
-                        alarms.firstOrNull {
-                            it.id == alarmId
-                        }
+                    val alarms by viewModel.alarms.collectAsState()
+                    val alarm = alarms.firstOrNull { it.id == alarmId }
 
                     if (alarm != null) {
-
                         EditAlarmScreen(
                             alarm = alarm,
                             viewModel = viewModel,
@@ -371,12 +361,8 @@ fun AppNavigation(
                     }
                 }
 
-                // ---------------------------------------------------------
                 // REMINDERS
-                // ---------------------------------------------------------
-
                 composable(Routes.REMINDERS) {
-
                     val viewModel: ReminderViewModel =
                         viewModel(
                             factory = ReminderViewModelFactory(
@@ -388,9 +374,7 @@ fun AppNavigation(
                     ReminderListScreen(
                         viewModel = viewModel,
                         onAddReminder = {
-                            navController.navigate(
-                                Routes.ADD_REMINDER
-                            )
+                            navController.navigate(Routes.ADD_REMINDER)
                         },
                         onEditReminder = { reminderId ->
                             navController.navigate(
@@ -401,7 +385,6 @@ fun AppNavigation(
                 }
 
                 composable(Routes.ADD_REMINDER) {
-
                     val viewModel: ReminderViewModel =
                         viewModel(
                             factory = ReminderViewModelFactory(
@@ -429,10 +412,8 @@ fun AppNavigation(
                         }
                     )
                 ) { entry ->
-
                     val reminderId =
-                        entry.arguments
-                            ?.getLong("reminderId")
+                        entry.arguments?.getLong("reminderId")
                             ?: return@composable
 
                     val viewModel: ReminderViewModel =
@@ -443,16 +424,11 @@ fun AppNavigation(
                             )
                         )
 
-                    val reminders by
-                    viewModel.reminders.collectAsState()
-
+                    val reminders by viewModel.reminders.collectAsState()
                     val reminder =
-                        reminders.firstOrNull {
-                            it.id == reminderId
-                        }
+                        reminders.firstOrNull { it.id == reminderId }
 
                     if (reminder != null) {
-
                         EditReminderScreen(
                             reminder = reminder,
                             viewModel = viewModel,
@@ -469,12 +445,8 @@ fun AppNavigation(
                     }
                 }
 
-                // ---------------------------------------------------------
                 // BIRTHDAYS
-                // ---------------------------------------------------------
-
                 composable(Routes.BIRTHDAYS) {
-
                     val viewModel: BirthdayViewModel =
                         viewModel(
                             factory = BirthdayViewModelFactory(
@@ -486,9 +458,7 @@ fun AppNavigation(
                     BirthdayListScreen(
                         viewModel = viewModel,
                         onAddBirthday = {
-                            navController.navigate(
-                                Routes.ADD_BIRTHDAY
-                            )
+                            navController.navigate(Routes.ADD_BIRTHDAY)
                         },
                         onEditBirthday = { birthdayId ->
                             navController.navigate(
@@ -499,7 +469,6 @@ fun AppNavigation(
                 }
 
                 composable(Routes.ADD_BIRTHDAY) {
-
                     val viewModel: BirthdayViewModel =
                         viewModel(
                             factory = BirthdayViewModelFactory(
@@ -524,10 +493,8 @@ fun AppNavigation(
                         }
                     )
                 ) { entry ->
-
                     val birthdayId =
-                        entry.arguments
-                            ?.getLong("birthdayId")
+                        entry.arguments?.getLong("birthdayId")
                             ?: return@composable
 
                     val viewModel: BirthdayViewModel =
@@ -538,16 +505,11 @@ fun AppNavigation(
                             )
                         )
 
-                    val birthdays by
-                    viewModel.birthdays.collectAsState()
-
+                    val birthdays by viewModel.birthdays.collectAsState()
                     val birthday =
-                        birthdays.firstOrNull {
-                            it.id == birthdayId
-                        }
+                        birthdays.firstOrNull { it.id == birthdayId }
 
                     if (birthday != null) {
-
                         EditBirthdayScreen(
                             birthday = birthday,
                             viewModel = viewModel,
@@ -564,30 +526,57 @@ fun AppNavigation(
                     }
                 }
 
-                // ---------------------------------------------------------
                 // SETTINGS
-                // ---------------------------------------------------------
-
                 composable(Routes.SETTINGS) {
-
                     SettingsScreen(
                         settingsRepository =
                             application.appSettingsRepository,
                         onBack = {
                             navController.popBackStack()
+                        },
+                        onOpenCapabilitySetup = {
+                            navController.navigate(
+                                Routes.CAPABILITY_SETUP
+                            )
                         }
                     )
                 }
 
-                // ---------------------------------------------------------
+                // CAPABILITY CHECKLIST / FIRST-LAUNCH SETUP
+                composable(Routes.CAPABILITY_SETUP) {
+                    CapabilitySetupScreen(
+                        isFirstLaunch = !onboardingComplete,
+                        onBack = {
+                            if (!onboardingComplete) {
+                                onboardingPreferences.edit()
+                                    .putBoolean(
+                                        "capability_setup_completed",
+                                        true
+                                    )
+                                    .apply()
+
+                                onboardingComplete = true
+
+                                navController.navigate(Routes.HOME) {
+                                    popUpTo(
+                                        Routes.CAPABILITY_SETUP
+                                    ) {
+                                        inclusive = true
+                                    }
+                                    launchSingleTop = true
+                                }
+                            } else {
+                                navController.popBackStack()
+                            }
+                        }
+                    )
+                }
+
                 // PROFILE
-                // ---------------------------------------------------------
                 composable(Routes.PROFILE) {
                     ProfileScreen()
                 }
             }
         }
     }
-
-
 }
