@@ -63,7 +63,10 @@ class AlarmManagerSchedulerTest {
             result
         )
 
-        scheduler.cancel(event.id)
+        scheduler.cancel(
+            eventType = ScheduledEventType.ALARM,
+            eventId = event.id
+        )
     }
 
     @Test
@@ -97,7 +100,10 @@ class AlarmManagerSchedulerTest {
 
         val eventId = 1003L
 
-        scheduler.cancel(eventId)
+        scheduler.cancel(
+            eventType = ScheduledEventType.ALARM,
+            eventId = eventId
+        )
     }
 
     private fun canScheduleExactAlarms(): Boolean {

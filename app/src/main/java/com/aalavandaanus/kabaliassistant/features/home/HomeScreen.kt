@@ -6,31 +6,20 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import java.util.Calendar
-import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
@@ -38,29 +27,38 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.style.TextOverflow
-import com.google.firebase.auth.FirebaseAuth
-import kotlinx.coroutines.launch
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import coil.compose.AsyncImage
-import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.intl.Locale
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.compose.foundation.layout.ColumnScope
+import coil.compose.AsyncImage
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
-import androidx.compose.ui.text.intl.Locale
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.RowScope
 
 private val KabaliNavy = Color(0xFF0B1120)
 private val KabaliSurface = Color(0xFF151F33)
@@ -81,8 +79,8 @@ fun HomeScreen(
 ) {
     val dashboardState: HomeDashboardState by
     viewModel.dashboardState.collectAsState()
-    val platformLocale = Locale.current.platformLocale
 
+    val platformLocale = Locale.current.platformLocale
     val lifecycleOwner = LocalLifecycleOwner.current
 
     DisposableEffect(lifecycleOwner, viewModel) {
@@ -115,7 +113,7 @@ fun HomeScreen(
             .padding(horizontal = 20.dp, vertical = 18.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        // Welcome header and existing Google account avatar
+        // Welcome header and Google account avatar
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -142,10 +140,7 @@ fun HomeScreen(
             HomeAccountAvatar()
         }
 
-
         // Kabali assistant card
-
-        // Compact Kabali assistant card
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(22.dp),
@@ -156,7 +151,6 @@ fun HomeScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Kabali identity and salutation — left
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -221,7 +215,6 @@ fun HomeScreen(
                     }
                 }
 
-                // Listening action — right
                 Surface(
                     modifier = Modifier
                         .width(88.dp)
@@ -249,53 +242,77 @@ fun HomeScreen(
                 }
             }
         }
-// Reminders — full width
+
+        // Upcoming schedules — replaces the old reminders-only dashboard card
         DashboardInfoCard(
-            title = "REMINDERS",
+            title = "UPCOMING REMINDERS",
             emoji = "📝",
             accent = KabaliPurple,
             onClick = onOpenReminders
         ) {
-            val reminder = dashboardState.upcomingReminder
-            val overdue = dashboardState.overdueReminderCount
+            val schedules = dashboardState.upcomingSchedules
 
-            if (reminder == null && overdue == 0) {
+            if (schedules.isEmpty()) {
                 Text(
-                    text = "You're all caught up. No upcoming reminders.",
+                    text = "You're all caught up. No upcoming schedules.",
                     color = KabaliMuted,
                     style = MaterialTheme.typography.bodyMedium
                 )
             } else {
-                if (reminder != null) {
-                    Text(
-                        text = reminder.title,
-                        color = KabaliText,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                schedules.forEachIndexed { index, schedule ->
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = "${schedule.categoryIcon} ${schedule.title}",
+                            color = KabaliText,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
 
-                    Text(
-                        text = SimpleDateFormat(
-                            "EEE, MMM d · h:mm a",
-                            platformLocale
-                        ).format(Date(reminder.triggerAtMillis)),
-                        color = KabaliPurple,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
+                        Text(
+                            text = "${schedule.categoryName} · " +
+                                    SimpleDateFormat(
+                                        "EEE, MMM d · h:mm a",
+                                        platformLocale
+                                    ).format(Date(schedule.triggerAtMillis)),
+                            color = if (schedule.isOverdue) {
+                                KabaliCyan
+                            } else {
+                                KabaliPurple
+                            },
+                            style = MaterialTheme.typography.bodyMedium
+                        )
 
-                if (overdue > 0) {
-                    Text(
-                        text = "$overdue overdue reminder${if (overdue == 1) "" else "s"}",
-                        color = KabaliCyan,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                        if (schedule.message.isNotBlank()) {
+                            Text(
+                                text = schedule.message,
+                                color = KabaliMuted,
+                                style = MaterialTheme.typography.bodySmall,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+
+                    if (index < schedules.lastIndex) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                    }
                 }
+            }
+
+            if (dashboardState.overdueScheduleCount > 0) {
+                Text(
+                    text = "${dashboardState.overdueScheduleCount} overdue",
+                    color = KabaliCyan,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
         }
 
-// Next Alarm + Upcoming Birthday — two columns
+        // Next alarm + upcoming birthday
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -391,8 +408,7 @@ fun HomeScreen(
             }
         }
 
-
-        // Compact quick actions
+        // Quick actions
         Text(
             text = "Quick actions",
             style = MaterialTheme.typography.titleLarge,
@@ -415,7 +431,7 @@ fun HomeScreen(
             QuickActionCard(
                 modifier = Modifier.weight(1f),
                 emoji = "📝",
-                title = "Reminders",
+                title = "Schedules",
                 accent = KabaliPurple,
                 onClick = onOpenReminders
             )
@@ -558,7 +574,9 @@ private fun HomeAccountAvatar() {
         val listener = FirebaseAuth.AuthStateListener {
             user = it.currentUser
         }
+
         auth.addAuthStateListener(listener)
+
         onDispose {
             auth.removeAuthStateListener(listener)
         }
@@ -579,11 +597,14 @@ private fun HomeAccountAvatar() {
                         menuExpanded = true
                     } else {
                         val currentActivity = activity
+
                         if (currentActivity == null) {
-                            errorMessage = "Unable to open Google sign-in right now."
+                            errorMessage =
+                                "Unable to open Google sign-in right now."
                         } else {
                             scope.launch {
                                 isBusy = true
+
                                 try {
                                     manager.signIn(currentActivity)
                                 } catch (e: Exception) {
@@ -617,6 +638,7 @@ private fun HomeAccountAvatar() {
                     fontWeight = FontWeight.Bold,
                     fontSize = 22.sp
                 )
+
                 AsyncImage(
                     model = user?.photoUrl,
                     contentDescription = "Google profile photo",
@@ -668,8 +690,10 @@ private fun HomeAccountAvatar() {
                 text = { Text("Sign out") },
                 onClick = {
                     menuExpanded = false
+
                     scope.launch {
                         isBusy = true
+
                         try {
                             manager.signOut()
                         } catch (e: Exception) {

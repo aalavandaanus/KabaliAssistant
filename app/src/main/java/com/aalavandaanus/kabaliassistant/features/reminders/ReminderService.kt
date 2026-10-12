@@ -44,7 +44,10 @@ class ReminderService(
 
     suspend fun update(reminder: Reminder): Boolean {
 
-        scheduler.cancel(reminder.id)
+        scheduler.cancel(
+            eventType = ScheduledEventType.REMINDER,
+            eventId = reminder.id
+        )
 
         reminderRepository.updateReminder(reminder)
 
@@ -74,7 +77,10 @@ class ReminderService(
 
         if (!enabled) {
             reminderRepository.updateReminder(updatedReminder)
-            scheduler.cancel(reminder.id)
+            scheduler.cancel(
+                eventType = ScheduledEventType.REMINDER,
+                eventId = reminder.id
+            )
             return true
         }
 
@@ -98,7 +104,10 @@ class ReminderService(
             return true
         }
 
-        scheduler.cancel(reminder.id)
+        scheduler.cancel(
+            eventType = ScheduledEventType.REMINDER,
+            eventId = reminder.id
+        )
 
         val completedReminder = reminder.copy(
             completedAtMillis = System.currentTimeMillis()
@@ -150,7 +159,10 @@ class ReminderService(
     }
 
     suspend fun delete(reminder: Reminder) {
-        scheduler.cancel(reminder.id)
+        scheduler.cancel(
+            eventType = ScheduledEventType.REMINDER,
+            eventId = reminder.id
+        )
         reminderRepository.deleteReminder(reminder)
     }
 

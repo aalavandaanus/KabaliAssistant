@@ -36,7 +36,10 @@ class AlarmService(
     }
 
     suspend fun update(alarm: Alarm): Boolean {
-        scheduler.cancel(alarm.id)
+        scheduler.cancel(
+            eventType = ScheduledEventType.ALARM,
+            eventId = alarm.id
+        )
 
         alarmRepository.updateAlarm(alarm)
 
@@ -62,7 +65,10 @@ class AlarmService(
         alarmRepository.updateAlarm(updatedAlarm)
 
         if (!enabled) {
-            scheduler.cancel(alarm.id)
+            scheduler.cancel(
+                eventType = ScheduledEventType.ALARM,
+                eventId = alarm.id
+            )
             return true
         }
 
@@ -74,7 +80,10 @@ class AlarmService(
     }
 
     suspend fun delete(alarm: Alarm) {
-        scheduler.cancel(alarm.id)
+        scheduler.cancel(
+            eventType = ScheduledEventType.ALARM,
+            eventId = alarm.id
+        )
         alarmRepository.deleteAlarm(alarm)
     }
 

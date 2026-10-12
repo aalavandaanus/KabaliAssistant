@@ -47,26 +47,21 @@ import com.aalavandaanus.kabaliassistant.features.home.HomeViewModel
 import com.aalavandaanus.kabaliassistant.features.home.HomeViewModelFactory
 import com.aalavandaanus.kabaliassistant.features.listening.ListeningScreen
 import com.aalavandaanus.kabaliassistant.features.profile.ProfileScreen
-import com.aalavandaanus.kabaliassistant.features.reminders.AddReminderScreen
-import com.aalavandaanus.kabaliassistant.features.reminders.EditReminderScreen
-import com.aalavandaanus.kabaliassistant.features.reminders.ReminderListScreen
-import com.aalavandaanus.kabaliassistant.features.reminders.ReminderViewModel
-import com.aalavandaanus.kabaliassistant.features.reminders.ReminderViewModelFactory
+import com.aalavandaanus.kabaliassistant.features.schedules.EditScheduleScreen
+import com.aalavandaanus.kabaliassistant.features.schedules.ManageScheduleCategoriesScreen
+import com.aalavandaanus.kabaliassistant.features.schedules.ScheduleListScreen
+import com.aalavandaanus.kabaliassistant.features.schedules.ScheduleViewModel
+import com.aalavandaanus.kabaliassistant.features.schedules.ScheduleViewModelFactory
 import com.aalavandaanus.kabaliassistant.features.settings.CapabilitySetupScreen
 import com.aalavandaanus.kabaliassistant.features.settings.SettingsScreen
 import kotlinx.coroutines.launch
 
 object Routes {
-
     const val HOME = "home"
 
     const val ALARMS = "alarms"
     const val ADD_ALARM = "add_alarm"
     const val EDIT_ALARM = "edit_alarm/{alarmId}"
-
-    const val REMINDERS = "reminders"
-    const val ADD_REMINDER = "add_reminder"
-    const val EDIT_REMINDER = "edit_reminder/{reminderId}"
 
     const val BIRTHDAYS = "birthdays"
     const val ADD_BIRTHDAY = "add_birthday"
@@ -75,14 +70,18 @@ object Routes {
     const val SETTINGS = "settings"
     const val CAPABILITY_SETUP = "capability_setup"
 
+    // Existing route identifiers are retained to minimize navigation changes.
+    const val REMINDERS = "schedules"
+    const val ADD_REMINDER = "add_schedule"
+    const val EDIT_REMINDER = "edit_schedule/{scheduleId}"
+    const val MANAGE_SCHEDULE_CATEGORIES = "manage_schedule_categories"
+
+    fun editReminder(scheduleId: Long) = "edit_schedule/$scheduleId"
+    fun editAlarm(alarmId: Long) = "edit_alarm/$alarmId"
+    fun editBirthday(birthdayId: Long) = "edit_birthday/$birthdayId"
+
     const val LISTENING = "listening"
     const val PROFILE = "profile"
-
-    fun editAlarm(alarmId: Long) = "edit_alarm/$alarmId"
-
-    fun editReminder(reminderId: Long) = "edit_reminder/$reminderId"
-
-    fun editBirthday(birthdayId: Long) = "edit_birthday/$birthdayId"
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -118,38 +117,31 @@ fun AppNavigation(
     val isInitialSetup =
         currentRoute == Routes.CAPABILITY_SETUP && !onboardingComplete
 
-    val drawerRoute = when {
-        currentRoute == Routes.HOME ->
-            Routes.HOME
+    val drawerRoute = when (currentRoute) {
+        Routes.HOME -> Routes.HOME
 
-        currentRoute == Routes.ALARMS ||
-                currentRoute == Routes.ADD_ALARM ||
-                currentRoute == Routes.EDIT_ALARM ->
-            Routes.ALARMS
+        Routes.ALARMS,
+        Routes.ADD_ALARM,
+        Routes.EDIT_ALARM -> Routes.ALARMS
 
-        currentRoute == Routes.REMINDERS ||
-                currentRoute == Routes.ADD_REMINDER ||
-                currentRoute == Routes.EDIT_REMINDER ->
-            Routes.REMINDERS
+        Routes.REMINDERS,
+        Routes.ADD_REMINDER,
+        Routes.EDIT_REMINDER,
+        Routes.MANAGE_SCHEDULE_CATEGORIES -> Routes.REMINDERS
 
-        currentRoute == Routes.BIRTHDAYS ||
-                currentRoute == Routes.ADD_BIRTHDAY ||
-                currentRoute == Routes.EDIT_BIRTHDAY ->
-            Routes.BIRTHDAYS
+        Routes.BIRTHDAYS,
+        Routes.ADD_BIRTHDAY,
+        Routes.EDIT_BIRTHDAY -> Routes.BIRTHDAYS
 
-        currentRoute == Routes.SETTINGS ||
-                (currentRoute == Routes.CAPABILITY_SETUP &&
-                        onboardingComplete) ->
-            Routes.SETTINGS
+        Routes.SETTINGS -> Routes.SETTINGS
 
-        currentRoute == Routes.LISTENING ->
-            Routes.LISTENING
+        Routes.CAPABILITY_SETUP -> {
+            if (onboardingComplete) Routes.SETTINGS else null
+        }
 
-        currentRoute == Routes.PROFILE ->
-            Routes.PROFILE
-
-        else ->
-            null
+        Routes.LISTENING -> Routes.LISTENING
+        Routes.PROFILE -> Routes.PROFILE
+        else -> null
     }
 
     ModalNavigationDrawer(
@@ -168,7 +160,6 @@ fun AppNavigation(
                             popUpTo(Routes.HOME) {
                                 saveState = false
                             }
-
                             launchSingleTop = true
                             restoreState = false
                         }
@@ -183,32 +174,15 @@ fun AppNavigation(
                     title = {
                         Text(
                             when {
-                                isInitialSetup ->
-                                    "Set up Kabali"
-
-                                drawerRoute == Routes.HOME ->
-                                    "Home"
-
-                                drawerRoute == Routes.ALARMS ->
-                                    "Alarms"
-
-                                drawerRoute == Routes.REMINDERS ->
-                                    "Reminders"
-
-                                drawerRoute == Routes.BIRTHDAYS ->
-                                    "Birthdays"
-
-                                drawerRoute == Routes.SETTINGS ->
-                                    "Settings"
-
-                                drawerRoute == Routes.LISTENING ->
-                                    "Listening"
-
-                                drawerRoute == Routes.PROFILE ->
-                                    "My Profile"
-
-                                else ->
-                                    "Kabali Assistant"
+                                isInitialSetup -> "Set up Kabali"
+                                drawerRoute == Routes.HOME -> "Home"
+                                drawerRoute == Routes.ALARMS -> "Alarms"
+                                drawerRoute == Routes.REMINDERS -> "Schedules"
+                                drawerRoute == Routes.BIRTHDAYS -> "Birthdays"
+                                drawerRoute == Routes.SETTINGS -> "Settings"
+                                drawerRoute == Routes.LISTENING -> "Listening"
+                                drawerRoute == Routes.PROFILE -> "My Profile"
+                                else -> "Kabali Assistant"
                             }
                         )
                     },
@@ -241,20 +215,21 @@ fun AppNavigation(
                 },
                 modifier = Modifier.padding(paddingValues)
             ) {
-
                 // HOME
                 composable(Routes.HOME) {
-                    val viewModel: HomeViewModel =
-                        viewModel(
-                            factory = HomeViewModelFactory(
-                                alarmRepository = application.alarmRepository,
-                                reminderRepository = application.reminderRepository,
-                                birthdayRepository = application.birthdayRepository
-                            )
+                    val homeViewModel: HomeViewModel = viewModel(
+                        factory = HomeViewModelFactory(
+                            alarmRepository = application.alarmRepository,
+                            reminderRepository = application.reminderRepository,
+                            birthdayRepository = application.birthdayRepository,
+                            scheduleRepository = application.scheduleRepository,
+                            scheduleCategoryRepository =
+                                application.scheduleCategoryRepository
                         )
+                    )
 
                     HomeScreen(
-                        viewModel = viewModel,
+                        viewModel = homeViewModel,
                         onOpenAlarms = {
                             navController.navigate(Routes.ALARMS)
                         },
@@ -280,44 +255,36 @@ fun AppNavigation(
 
                 // ALARMS
                 composable(Routes.ALARMS) {
-                    val viewModel: AlarmViewModel =
-                        viewModel(
-                            factory = AlarmViewModelFactory(
-                                alarmRepository = application.alarmRepository,
-                                alarmService = application.alarmService
-                            )
+                    val alarmViewModel: AlarmViewModel = viewModel(
+                        factory = AlarmViewModelFactory(
+                            alarmRepository = application.alarmRepository,
+                            alarmService = application.alarmService
                         )
+                    )
 
                     AlarmListScreen(
-                        viewModel = viewModel,
+                        viewModel = alarmViewModel,
                         onAddAlarm = {
                             navController.navigate(Routes.ADD_ALARM)
                         },
                         onEditAlarm = { alarmId ->
-                            navController.navigate(
-                                Routes.editAlarm(alarmId)
-                            )
+                            navController.navigate(Routes.editAlarm(alarmId))
                         }
                     )
                 }
 
                 composable(Routes.ADD_ALARM) {
-                    val viewModel: AlarmViewModel =
-                        viewModel(
-                            factory = AlarmViewModelFactory(
-                                alarmRepository = application.alarmRepository,
-                                alarmService = application.alarmService
-                            )
+                    val alarmViewModel: AlarmViewModel = viewModel(
+                        factory = AlarmViewModelFactory(
+                            alarmRepository = application.alarmRepository,
+                            alarmService = application.alarmService
                         )
+                    )
 
                     AddAlarmScreen(
-                        viewModel = viewModel,
-                        onSaved = {
-                            navController.popBackStack()
-                        },
-                        onCancel = {
-                            navController.popBackStack()
-                        }
+                        viewModel = alarmViewModel,
+                        onSaved = { navController.popBackStack() },
+                        onCancel = { navController.popBackStack() }
                     )
                 }
 
@@ -329,134 +296,156 @@ fun AppNavigation(
                         }
                     )
                 ) { entry ->
-                    val alarmId =
-                        entry.arguments?.getLong("alarmId")
-                            ?: return@composable
+                    val alarmId = entry.arguments?.getLong("alarmId")
+                        ?: return@composable
 
-                    val viewModel: AlarmViewModel =
-                        viewModel(
-                            factory = AlarmViewModelFactory(
-                                alarmRepository = application.alarmRepository,
-                                alarmService = application.alarmService
-                            )
+                    val alarmViewModel: AlarmViewModel = viewModel(
+                        factory = AlarmViewModelFactory(
+                            alarmRepository = application.alarmRepository,
+                            alarmService = application.alarmService
                         )
+                    )
 
-                    val alarms by viewModel.alarms.collectAsState()
+                    val alarms by alarmViewModel.alarms.collectAsState()
                     val alarm = alarms.firstOrNull { it.id == alarmId }
 
                     if (alarm != null) {
                         EditAlarmScreen(
                             alarm = alarm,
-                            viewModel = viewModel,
-                            onSaved = {
-                                navController.popBackStack()
-                            },
-                            onDeleted = {
-                                navController.popBackStack()
-                            },
-                            onCancel = {
-                                navController.popBackStack()
-                            }
+                            viewModel = alarmViewModel,
+                            onSaved = { navController.popBackStack() },
+                            onDeleted = { navController.popBackStack() },
+                            onCancel = { navController.popBackStack() }
                         )
                     }
                 }
 
-                // REMINDERS
+                // SCHEDULES
                 composable(Routes.REMINDERS) {
-                    val viewModel: ReminderViewModel =
-                        viewModel(
-                            factory = ReminderViewModelFactory(
-                                reminderRepository = application.reminderRepository,
-                                reminderService = application.reminderService
-                            )
+                    val scheduleViewModel: ScheduleViewModel = viewModel(
+                        factory = ScheduleViewModelFactory(
+                            scheduleRepository = application.scheduleRepository,
+                            categoryRepository =
+                                application.scheduleCategoryRepository,
+                            scheduleService = application.scheduleService
                         )
+                    )
 
-                    ReminderListScreen(
-                        viewModel = viewModel,
-                        onAddReminder = {
+                    ScheduleListScreen(
+                        viewModel = scheduleViewModel,
+                        onAddSchedule = {
                             navController.navigate(Routes.ADD_REMINDER)
                         },
-                        onEditReminder = { reminderId ->
+                        onEditSchedule = { scheduleId ->
                             navController.navigate(
-                                Routes.editReminder(reminderId)
+                                Routes.editReminder(scheduleId)
                             )
-                        }
-                    )
-                }
-
-                composable(Routes.ADD_REMINDER) {
-                    val viewModel: ReminderViewModel =
-                        viewModel(
-                            factory = ReminderViewModelFactory(
-                                reminderRepository = application.reminderRepository,
-                                reminderService = application.reminderService
-                            )
-                        )
-
-                    AddReminderScreen(
-                        viewModel = viewModel,
-                        onSaved = {
-                            navController.popBackStack()
                         },
-                        onCancel = {
-                            navController.popBackStack()
+                        onManageCategories = {
+                            navController.navigate(
+                                Routes.MANAGE_SCHEDULE_CATEGORIES
+                            )
                         }
                     )
                 }
 
+                // ADD SCHEDULE
+                composable(Routes.ADD_REMINDER) {
+                    val scheduleViewModel: ScheduleViewModel = viewModel(
+                        factory = ScheduleViewModelFactory(
+                            scheduleRepository = application.scheduleRepository,
+                            categoryRepository =
+                                application.scheduleCategoryRepository,
+                            scheduleService = application.scheduleService
+                        )
+                    )
+
+                    val categories by
+                    scheduleViewModel.categories.collectAsState()
+
+                    EditScheduleScreen(
+                        viewModel = scheduleViewModel,
+                        categories = categories,
+                        existingSchedule = null,
+                        onSaved = { navController.popBackStack() },
+                        onCancel = { navController.popBackStack() }
+                    )
+                }
+
+                // EDIT SCHEDULE
                 composable(
                     route = Routes.EDIT_REMINDER,
                     arguments = listOf(
-                        navArgument("reminderId") {
+                        navArgument("scheduleId") {
                             type = NavType.LongType
                         }
                     )
                 ) { entry ->
-                    val reminderId =
-                        entry.arguments?.getLong("reminderId")
+                    val scheduleId =
+                        entry.arguments?.getLong("scheduleId")
                             ?: return@composable
 
-                    val viewModel: ReminderViewModel =
-                        viewModel(
-                            factory = ReminderViewModelFactory(
-                                reminderRepository = application.reminderRepository,
-                                reminderService = application.reminderService
-                            )
+                    val scheduleViewModel: ScheduleViewModel = viewModel(
+                        factory = ScheduleViewModelFactory(
+                            scheduleRepository = application.scheduleRepository,
+                            categoryRepository =
+                                application.scheduleCategoryRepository,
+                            scheduleService = application.scheduleService
                         )
+                    )
 
-                    val reminders by viewModel.reminders.collectAsState()
-                    val reminder =
-                        reminders.firstOrNull { it.id == reminderId }
+                    val schedules by
+                    scheduleViewModel.schedules.collectAsState()
+                    val categories by
+                    scheduleViewModel.categories.collectAsState()
 
-                    if (reminder != null) {
-                        EditReminderScreen(
-                            reminder = reminder,
-                            viewModel = viewModel,
-                            onSaved = {
-                                navController.popBackStack()
-                            },
-                            onDeleted = {
-                                navController.popBackStack()
-                            },
-                            onCancel = {
-                                navController.popBackStack()
-                            }
+                    val schedule =
+                        schedules.firstOrNull { it.id == scheduleId }
+
+                    if (schedule != null) {
+                        EditScheduleScreen(
+                            viewModel = scheduleViewModel,
+                            categories = categories,
+                            existingSchedule = schedule,
+                            onSaved = { navController.popBackStack() },
+                            onDeleted = { navController.popBackStack() },
+                            onCancel = { navController.popBackStack() }
                         )
                     }
                 }
 
+                // MANAGE SCHEDULE CATEGORIES
+                composable(Routes.MANAGE_SCHEDULE_CATEGORIES) {
+                    val scheduleViewModel: ScheduleViewModel = viewModel(
+                        factory = ScheduleViewModelFactory(
+                            scheduleRepository = application.scheduleRepository,
+                            categoryRepository =
+                                application.scheduleCategoryRepository,
+                            scheduleService = application.scheduleService
+                        )
+                    )
+
+                    val categories by
+                    scheduleViewModel.categories.collectAsState()
+
+                    ManageScheduleCategoriesScreen(
+                        viewModel = scheduleViewModel,
+                        categories = categories,
+                        onBack = { navController.popBackStack() }
+                    )
+                }
+
                 // BIRTHDAYS
                 composable(Routes.BIRTHDAYS) {
-                    val viewModel: BirthdayViewModel =
-                        viewModel(
-                            factory = BirthdayViewModelFactory(
-                                birthdayRepository = application.birthdayRepository,
-                                birthdayService = application.birthdayService
-                            )
+                    val birthdayViewModel: BirthdayViewModel = viewModel(
+                        factory = BirthdayViewModelFactory(
+                            birthdayRepository = application.birthdayRepository,
+                            birthdayService = application.birthdayService
                         )
+                    )
 
                     BirthdayListScreen(
-                        viewModel = viewModel,
+                        viewModel = birthdayViewModel,
                         onAddBirthday = {
                             navController.navigate(Routes.ADD_BIRTHDAY)
                         },
@@ -469,19 +458,16 @@ fun AppNavigation(
                 }
 
                 composable(Routes.ADD_BIRTHDAY) {
-                    val viewModel: BirthdayViewModel =
-                        viewModel(
-                            factory = BirthdayViewModelFactory(
-                                birthdayRepository = application.birthdayRepository,
-                                birthdayService = application.birthdayService
-                            )
+                    val birthdayViewModel: BirthdayViewModel = viewModel(
+                        factory = BirthdayViewModelFactory(
+                            birthdayRepository = application.birthdayRepository,
+                            birthdayService = application.birthdayService
                         )
+                    )
 
                     AddBirthdayScreen(
-                        viewModel = viewModel,
-                        onBack = {
-                            navController.popBackStack()
-                        }
+                        viewModel = birthdayViewModel,
+                        onBack = { navController.popBackStack() }
                     )
                 }
 
@@ -497,31 +483,25 @@ fun AppNavigation(
                         entry.arguments?.getLong("birthdayId")
                             ?: return@composable
 
-                    val viewModel: BirthdayViewModel =
-                        viewModel(
-                            factory = BirthdayViewModelFactory(
-                                birthdayRepository = application.birthdayRepository,
-                                birthdayService = application.birthdayService
-                            )
+                    val birthdayViewModel: BirthdayViewModel = viewModel(
+                        factory = BirthdayViewModelFactory(
+                            birthdayRepository = application.birthdayRepository,
+                            birthdayService = application.birthdayService
                         )
+                    )
 
-                    val birthdays by viewModel.birthdays.collectAsState()
+                    val birthdays by
+                    birthdayViewModel.birthdays.collectAsState()
                     val birthday =
                         birthdays.firstOrNull { it.id == birthdayId }
 
                     if (birthday != null) {
                         EditBirthdayScreen(
                             birthday = birthday,
-                            viewModel = viewModel,
-                            onSaved = {
-                                navController.popBackStack()
-                            },
-                            onDeleted = {
-                                navController.popBackStack()
-                            },
-                            onCancel = {
-                                navController.popBackStack()
-                            }
+                            viewModel = birthdayViewModel,
+                            onSaved = { navController.popBackStack() },
+                            onDeleted = { navController.popBackStack() },
+                            onCancel = { navController.popBackStack() }
                         )
                     }
                 }
@@ -531,18 +511,14 @@ fun AppNavigation(
                     SettingsScreen(
                         settingsRepository =
                             application.appSettingsRepository,
-                        onBack = {
-                            navController.popBackStack()
-                        },
+                        onBack = { navController.popBackStack() },
                         onOpenCapabilitySetup = {
-                            navController.navigate(
-                                Routes.CAPABILITY_SETUP
-                            )
+                            navController.navigate(Routes.CAPABILITY_SETUP)
                         }
                     )
                 }
 
-                // CAPABILITY CHECKLIST / FIRST-LAUNCH SETUP
+                // CAPABILITY SETUP
                 composable(Routes.CAPABILITY_SETUP) {
                     CapabilitySetupScreen(
                         isFirstLaunch = !onboardingComplete,
@@ -558,9 +534,7 @@ fun AppNavigation(
                                 onboardingComplete = true
 
                                 navController.navigate(Routes.HOME) {
-                                    popUpTo(
-                                        Routes.CAPABILITY_SETUP
-                                    ) {
+                                    popUpTo(Routes.CAPABILITY_SETUP) {
                                         inclusive = true
                                     }
                                     launchSingleTop = true

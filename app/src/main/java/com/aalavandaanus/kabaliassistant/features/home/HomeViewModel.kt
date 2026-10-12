@@ -9,36 +9,59 @@ import com.aalavandaanus.kabaliassistant.data.birthdays.Birthday
 import com.aalavandaanus.kabaliassistant.data.birthdays.BirthdayRepository
 import com.aalavandaanus.kabaliassistant.data.reminders.Reminder
 import com.aalavandaanus.kabaliassistant.data.reminders.ReminderRepository
-import java.time.LocalDate
-import java.time.LocalDateTime
-import java.time.LocalTime
-import java.time.ZoneId
-import java.time.temporal.ChronoUnit
-import java.util.Calendar
+import com.aalavandaanus.kabaliassistant.data.schedules.Schedule
+import com.aalavandaanus.kabaliassistant.data.schedules.ScheduleCategory
+import com.aalavandaanus.kabaliassistant.data.schedules.ScheduleCategoryRepository
+import com.aalavandaanus.kabaliassistant.data.schedules.ScheduleRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import java.time.LocalDate
+import java.time.Year
+import java.time.ZoneId
+import java.util.Calendar
+
+
+private data class HomeDashboardInputs(
+    val alarms: List<Alarm>,
+    val reminders: List<Reminder>,
+    val birthdays: List<Birthday>,
+    val schedules: List<Schedule>,
+    val categories: List<ScheduleCategory>
+)
 
 class HomeViewModel(
     alarmRepository: AlarmRepository,
     reminderRepository: ReminderRepository,
-    birthdayRepository: BirthdayRepository
+    birthdayRepository: BirthdayRepository,
+    scheduleRepository: ScheduleRepository,
+    categoryRepository: ScheduleCategoryRepository
 ) : ViewModel() {
 
-    private val refreshTrigger =
-        MutableStateFlow(System.currentTimeMillis())
+    private val refreshTrigger = MutableStateFlow(0)
 
     val dashboardState = combine(
         alarmRepository.getAllAlarms(),
         reminderRepository.getAllReminders(),
         birthdayRepository.getAllBirthdays(),
-        refreshTrigger
-    ) { alarms, reminders, birthdays, _ ->
-        calculateDashboard(
+        scheduleRepository.getAllSchedules(),
+        categoryRepository.getAllCategories()
+    ) { alarms, reminders, birthdays, schedules, categories ->
+        HomeDashboardInputs(
             alarms = alarms,
             reminders = reminders,
             birthdays = birthdays,
+            schedules = schedules,
+            categories = categories
+        )
+    }.combine(refreshTrigger) { input, _ ->
+        calculateDashboard(
+            alarms = input.alarms,
+            reminders = input.reminders,
+            birthdays = input.birthdays,
+            schedules = input.schedules,
+            categories = input.categories,
             nowMillis = System.currentTimeMillis()
         )
     }.stateIn(
@@ -47,12 +70,8 @@ class HomeViewModel(
         initialValue = HomeDashboardState()
     )
 
-    /**
-     * Recalculates time-sensitive dashboard information.
-     * The screen will call this when the app returns to the foreground.
-     */
     fun refresh() {
-        refreshTrigger.value = System.currentTimeMillis()
+        refreshTrigger.value++
     }
 }
 
@@ -60,9 +79,12 @@ internal fun calculateDashboard(
     alarms: List<Alarm>,
     reminders: List<Reminder>,
     birthdays: List<Birthday>,
-    nowMillis: Long
+    nowMillis: Long,
+    schedules: List<Schedule> = emptyList(),
+    categories: List<ScheduleCategory> = emptyList()
 ): HomeDashboardState {
 
+    // Next enabled alarm
     val nextAlarm = alarms
         .asSequence()
         .filter { it.enabled }
@@ -77,7 +99,7 @@ internal fun calculateDashboard(
         }
         .minByOrNull { it.triggerAtMillis }
 
-
+    // Legacy reminders: retain existing dashboard values for compatibility.
     val enabledReminders = reminders.filter {
         it.enabled && it.completedAtMillis == null
     }
@@ -97,114 +119,123 @@ internal fun calculateDashboard(
         it.triggerAtMillis <= nowMillis
     }
 
-    val nearestBirthday = birthdays
-        .mapNotNull { birthday ->
-            calculateNextBirthday(birthday, nowMillis)
+    // New unified schedules
+    val categoryById = categories.associateBy { it.id }
+
+    val activeSchedules = schedules.filter {
+        it.enabled && !it.completed
+    }
+
+    val upcomingSchedules = activeSchedules
+        .sortedBy { it.triggerAtMillis }
+        .take(3)
+        .map { schedule ->
+            val category = categoryById[schedule.categoryId]
+
+            UpcomingScheduleInfo(
+                id = schedule.id,
+                title = schedule.title,
+                message = schedule.message,
+                categoryName = category?.name ?: "General",
+                categoryIcon = category?.icon ?: "📌",
+                triggerAtMillis = schedule.triggerAtMillis,
+                isOverdue = schedule.triggerAtMillis <= nowMillis
+            )
         }
+
+    val overdueScheduleCount = activeSchedules.count {
+        it.triggerAtMillis <= nowMillis
+    }
+
+    // Nearest birthday
+    val nearestBirthday = birthdays
+        .mapNotNull { calculateNextBirthday(it, nowMillis) }
         .minByOrNull { it.nextBirthdayAtMillis }
 
     return HomeDashboardState(
         nextAlarm = nextAlarm,
         upcomingReminder = upcomingReminder,
         overdueReminderCount = overdueReminderCount,
-        nearestBirthday = nearestBirthday
+        nearestBirthday = nearestBirthday,
+        upcomingSchedules = upcomingSchedules,
+        overdueScheduleCount = overdueScheduleCount
     )
 }
 
-private fun calculateNextAlarmTime(
+internal fun calculateNextAlarmTime(
     alarm: Alarm,
     nowMillis: Long
 ): Long? {
+    val zone = ZoneId.systemDefault()
+    val now = java.time.Instant.ofEpochMilli(nowMillis)
+        .atZone(zone)
 
-    val now = Calendar.getInstance().apply {
-        timeInMillis = nowMillis
-    }
+    val todayAlarm = now.toLocalDate()
+        .atTime(alarm.hour, alarm.minute)
+        .atZone(zone)
+        .toInstant()
+        .toEpochMilli()
 
-    val candidate = Calendar.getInstance().apply {
-        timeInMillis = nowMillis
-        set(Calendar.HOUR_OF_DAY, alarm.hour)
-        set(Calendar.MINUTE, alarm.minute)
-        set(Calendar.SECOND, 0)
-        set(Calendar.MILLISECOND, 0)
-    }
-
-    // Preserve the existing one-time alarm display behavior:
-    // if today's time has passed, show tomorrow's occurrence.
     if (alarm.repeatDays.isEmpty()) {
-        if (candidate.timeInMillis <= nowMillis) {
-            candidate.add(Calendar.DAY_OF_YEAR, 1)
+        return if (todayAlarm > nowMillis) {
+            todayAlarm
+        } else {
+            null
         }
-        return candidate.timeInMillis
-    }
-
-    // Repeat days use Calendar constants:
-    // Sunday = 1 through Saturday = 7.
-    val validRepeatDays = alarm.repeatDays.filter {
-        it in Calendar.SUNDAY..Calendar.SATURDAY
-    }.toSet()
-
-    if (validRepeatDays.isEmpty()) {
-        return null
     }
 
     for (daysAhead in 0..7) {
-        val occurrence = candidate.clone() as Calendar
-        occurrence.add(Calendar.DAY_OF_YEAR, daysAhead)
+        val date = now.toLocalDate().plusDays(daysAhead.toLong())
+        val dayOfWeek = date.dayOfWeek.value % 7 + 1
 
-        if (
-            occurrence.get(Calendar.DAY_OF_WEEK) in validRepeatDays &&
-            occurrence.timeInMillis > nowMillis
-        ) {
-            return occurrence.timeInMillis
+        if (dayOfWeek in alarm.repeatDays) {
+            val candidate = date
+                .atTime(alarm.hour, alarm.minute)
+                .atZone(zone)
+                .toInstant()
+                .toEpochMilli()
+
+            if (candidate > nowMillis) {
+                return candidate
+            }
         }
     }
 
     return null
 }
 
-private fun calculateNextBirthday(
+internal fun calculateNextBirthday(
     birthday: Birthday,
     nowMillis: Long
 ): BirthdayInfo? {
-
-    val zone = ZoneId.systemDefault()
-    val now = java.time.Instant.ofEpochMilli(nowMillis)
-        .atZone(zone)
+    val today = java.time.Instant.ofEpochMilli(nowMillis)
+        .atZone(ZoneId.systemDefault())
         .toLocalDate()
 
-    // Use the supplied clock for calculations, including tests.
-    val currentDate = now
+    val birthdayDate = try {
+        LocalDate.of(today.year, birthday.month, birthday.day)
+    } catch (_: Exception) {
+        return null
+    }
 
-    fun birthdayDate(year: Int): LocalDate? {
-        val day = if (
+    var nextBirthday = birthdayDate
+
+    if (nextBirthday.isBefore(today)) {
+        val nextYear = today.year + 1
+
+        nextBirthday = if (
             birthday.month == 2 &&
             birthday.day == 29 &&
-            !java.time.Year.isLeap(year.toLong())
+            !Year.isLeap(nextYear.toLong())
         ) {
-            28
+            LocalDate.of(nextYear, 2, 28)
         } else {
-            birthday.day
+            LocalDate.of(nextYear, birthday.month, birthday.day)
         }
-
-        return runCatching {
-            LocalDate.of(year, birthday.month, day)
-        }.getOrNull()
     }
 
-    val thisYear = birthdayDate(currentDate.year) ?: return null
-    val nextDate = if (thisYear.isBefore(currentDate)) {
-        birthdayDate(currentDate.year + 1) ?: return null
-    } else {
-        thisYear
-    }
-
-    val daysUntil = ChronoUnit.DAYS.between(
-        currentDate,
-        nextDate
-    ).toInt()
-
-    val birthdayAtMillis = nextDate
-        .atStartOfDay(zone)
+    val birthdayAtMillis = nextBirthday
+        .atStartOfDay(ZoneId.systemDefault())
         .toInstant()
         .toEpochMilli()
 
@@ -212,6 +243,8 @@ private fun calculateNextBirthday(
         name = birthday.name,
         relation = birthday.relation,
         nextBirthdayAtMillis = birthdayAtMillis,
-        daysUntilBirthday = daysUntil
+        daysUntilBirthday = java.time.temporal.ChronoUnit.DAYS
+            .between(today, nextBirthday)
+            .toInt()
     )
 }

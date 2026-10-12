@@ -1,3 +1,4 @@
+
 package com.aalavandaanus.kabaliassistant.core.scheduling
 
 interface Scheduler {
@@ -7,6 +8,7 @@ interface Scheduler {
     ): Boolean
 
     fun cancel(
+        eventType: ScheduledEventType,
         eventId: Long
     )
 }

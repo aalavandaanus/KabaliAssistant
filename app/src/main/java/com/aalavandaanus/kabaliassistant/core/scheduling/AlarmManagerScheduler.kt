@@ -9,6 +9,7 @@ import android.util.Log
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import android.net.Uri
 
 class AlarmManagerScheduler(
     context: Context
@@ -27,6 +28,7 @@ class AlarmManagerScheduler(
             Context.ALARM_SERVICE
         ) as AlarmManager
 
+
     override fun schedule(
         request: ScheduleRequest
     ): Boolean {
@@ -43,47 +45,35 @@ class AlarmManagerScheduler(
         )
 
         if (!event.enabled) {
-            cancel(event.id)
+            cancel(event.type, event.id)
             return false
         }
 
         if (
-            Build.VERSION.SDK_INT >=
-            Build.VERSION_CODES.S &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
             !alarmManager.canScheduleExactAlarms()
         ) {
-            Log.e(
-                TAG,
-                "Exact alarm permission is NOT granted."
-            )
-
+            Log.e(TAG, "Exact alarm permission is NOT granted.")
             return false
         }
 
-        val triggerTime =
-            ScheduleCalculator.calculateNextTrigger(
-                triggerAtMillis =
-                    event.triggerAtMillis,
-                recurrence =
-                    event.recurrence
-            )
+        val triggerTime = ScheduleCalculator.calculateNextTrigger(
+            triggerAtMillis = event.triggerAtMillis,
+            recurrence = event.recurrence
+        )
 
-        val formattedTime =
-            SimpleDateFormat(
-                "yyyy-MM-dd HH:mm:ss",
-                Locale.getDefault()
-            ).format(
-                Date(triggerTime)
-            )
+        val formattedTime = SimpleDateFormat(
+            "yyyy-MM-dd HH:mm:ss",
+            Locale.getDefault()
+        ).format(Date(triggerTime))
 
         Log.d(
             TAG,
-            "Scheduling eventId=${event.id} " +
-                    "at $formattedTime"
+            "Scheduling type=${event.type}, " +
+                    "eventId=${event.id} at $formattedTime"
         )
 
         return try {
-
             alarmManager.setExactAndAllowWhileIdle(
                 AlarmManager.RTC_WAKEUP,
                 triggerTime,
@@ -93,90 +83,69 @@ class AlarmManagerScheduler(
             Log.d(
                 TAG,
                 "Event successfully scheduled. " +
-                        "eventId=${event.id}"
+                        "type=${event.type}, eventId=${event.id}"
             )
-
             true
-
         } catch (e: SecurityException) {
-
             Log.e(
                 TAG,
-                "SecurityException while scheduling " +
-                        "eventId=${event.id}",
+                "SecurityException scheduling " +
+                        "type=${event.type}, eventId=${event.id}",
                 e
             )
-
             false
         }
     }
 
     override fun cancel(
+        eventType: ScheduledEventType,
         eventId: Long
     ) {
-
         Log.d(
             TAG,
-            "Cancelling eventId=$eventId"
+            "Cancelling type=$eventType, eventId=$eventId"
         )
 
-        val pendingIntent =
-            createPendingIntent(
-                eventId = eventId
-            )
-
-        alarmManager.cancel(
-            pendingIntent
+        val pendingIntent = createPendingIntent(
+            eventType = eventType,
+            eventId = eventId
         )
 
+        alarmManager.cancel(pendingIntent)
         pendingIntent.cancel()
     }
 
     private fun createPendingIntent(
         event: ScheduledEvent
     ): PendingIntent {
-
-        val intent =
-            Intent(
-                context,
-                ScheduleReceiver::class.java
-            ).apply {
-
-                putExtra(
-                    ScheduleReceiver.EXTRA_EVENT_ID,
-                    event.id
-                )
-
-                putExtra(
-                    ScheduleReceiver.EXTRA_EVENT_TYPE,
-                    event.type.name
-                )
-            }
-
-        return PendingIntent.getBroadcast(
-            context,
-            event.id.toInt(),
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or
-                    PendingIntent.FLAG_IMMUTABLE
+        return createPendingIntent(
+            eventType = event.type,
+            eventId = event.id
         )
     }
 
     private fun createPendingIntent(
+        eventType: ScheduledEventType,
         eventId: Long
     ): PendingIntent {
+        val intent = Intent(
+            context,
+            ScheduleReceiver::class.java
+        ).apply {
+            data = Uri.parse(
+                "kabali://scheduled-event/${eventType.name}/$eventId"
+            )
 
-        val intent =
-            Intent(
-                context,
-                ScheduleReceiver::class.java
-            ).apply {
+            putExtra(
+                ScheduleReceiver.EXTRA_EVENT_ID,
+                eventId
+            )
 
-                putExtra(
-                    ScheduleReceiver.EXTRA_EVENT_ID,
-                    eventId
-                )
-            }
+            putExtra(
+                ScheduleReceiver.EXTRA_EVENT_TYPE,
+                eventType.name
+            )
+        }
 
         return PendingIntent.getBroadcast(
             context,

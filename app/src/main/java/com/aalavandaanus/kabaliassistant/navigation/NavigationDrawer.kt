@@ -78,7 +78,7 @@ fun NavigationDrawer(
 
             NavigationDrawerItem(
                 label = {
-                    Text("Reminders")
+                    Text("Schedules")
                 },
                 selected = currentRoute == Routes.REMINDERS,
                 onClick = {
