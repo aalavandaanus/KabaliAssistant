@@ -91,7 +91,8 @@ fun AppNavigation(
     application: KabaliApplication
 ) {
     val context = LocalContext.current
-
+    val assistantName by
+    application.appSettingsRepository.assistantName.collectAsState()
     val onboardingPreferences = remember(context) {
         context.getSharedPreferences(
             "kabali_onboarding",
@@ -151,6 +152,7 @@ fun AppNavigation(
             ModalDrawerSheet {
                 NavigationDrawer(
                     currentRoute = drawerRoute,
+                    assistantName = assistantName,
                     onNavigate = { route ->
                         scope.launch {
                             drawerState.close()
@@ -174,7 +176,7 @@ fun AppNavigation(
                     title = {
                         Text(
                             when {
-                                isInitialSetup -> "Set up Kabali"
+                                isInitialSetup -> "Set up $assistantName"
                                 drawerRoute == Routes.HOME -> "Home"
                                 drawerRoute == Routes.ALARMS -> "Alarms"
                                 drawerRoute == Routes.REMINDERS -> "Schedules"
@@ -182,7 +184,7 @@ fun AppNavigation(
                                 drawerRoute == Routes.SETTINGS -> "Settings"
                                 drawerRoute == Routes.LISTENING -> "Listening"
                                 drawerRoute == Routes.PROFILE -> "My Profile"
-                                else -> "Kabali Assistant"
+                                else -> "$assistantName Assistant"
                             }
                         )
                     },
@@ -230,6 +232,7 @@ fun AppNavigation(
 
                     HomeScreen(
                         viewModel = homeViewModel,
+                        assistantName = assistantName,
                         onOpenAlarms = {
                             navController.navigate(Routes.ALARMS)
                         },
@@ -522,6 +525,7 @@ fun AppNavigation(
                 composable(Routes.CAPABILITY_SETUP) {
                     CapabilitySetupScreen(
                         isFirstLaunch = !onboardingComplete,
+                        settingsRepository = application.appSettingsRepository,
                         onBack = {
                             if (!onboardingComplete) {
                                 onboardingPreferences.edit()

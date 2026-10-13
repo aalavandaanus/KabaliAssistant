@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Person
 @Composable
 fun NavigationDrawer(
     currentRoute: String?,
+    assistantName: String,
     onNavigate: (String) -> Unit
 ) {
     ModalDrawerSheet {
@@ -32,7 +33,7 @@ fun NavigationDrawer(
         ) {
 
             Text(
-                text = "Kabali Assistant",
+                text = "$assistantName Assistant",
                 modifier = Modifier.padding(24.dp)
             )
 

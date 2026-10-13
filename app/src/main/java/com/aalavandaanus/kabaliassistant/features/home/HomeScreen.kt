@@ -71,6 +71,7 @@ private val KabaliMuted = Color(0xFF9CAFC8)
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel,
+    assistantName: String = "Kabali",
     onOpenAlarms: () -> Unit = {},
     onOpenReminders: () -> Unit = {},
     onOpenListening: () -> Unit = {},
@@ -137,7 +138,7 @@ fun HomeScreen(
                 )
             }
 
-            HomeAccountAvatar()
+            HomeAccountAvatar(assistantName = assistantName)
         }
 
         // Kabali assistant card
@@ -169,7 +170,9 @@ fun HomeScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "K",
+                                text = assistantName.firstOrNull()
+                                    ?.uppercaseChar()
+                                    ?.toString() ?: "K",
                                 fontSize = 26.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = KabaliCyan
@@ -180,7 +183,7 @@ fun HomeScreen(
                             verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
                             Text(
-                                text = "I'm Kabali",
+                                text = "I'm $assistantName",
                                 style = MaterialTheme.typography.titleMedium,
                                 color = KabaliText,
                                 fontWeight = FontWeight.Bold
@@ -558,7 +561,7 @@ private fun QuickActionCard(
 }
 
 @Composable
-private fun HomeAccountAvatar() {
+private fun HomeAccountAvatar(  assistantName: String) {
     val context = LocalContext.current
     val activity = remember(context) { context.findActivity() }
     val auth = remember { FirebaseAuth.getInstance() }
@@ -714,7 +717,7 @@ private fun HomeAccountAvatar() {
             containerColor = KabaliSurface,
             titleContentColor = KabaliText,
             textContentColor = KabaliMuted,
-            title = { Text("Kabali account") },
+            title = { Text("$assistantName account") },
             text = { Text(errorMessage.orEmpty()) },
             confirmButton = {
                 TextButton(onClick = { errorMessage = null }) {

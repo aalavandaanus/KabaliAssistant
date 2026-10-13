@@ -1,4 +1,3 @@
-
 package com.aalavandaanus.kabaliassistant.features.settings
 
 import android.Manifest
@@ -8,9 +7,10 @@ import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -19,12 +19,17 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -36,14 +41,26 @@ import com.aalavandaanus.kabaliassistant.core.capabilities.Capability
 import com.aalavandaanus.kabaliassistant.core.capabilities.CapabilityChecker
 import com.aalavandaanus.kabaliassistant.core.capabilities.CapabilityResult
 import com.aalavandaanus.kabaliassistant.core.capabilities.CapabilityStatus
+import com.aalavandaanus.kabaliassistant.data.settings.AppSettingsRepository
+import kotlinx.coroutines.launch
 
 @Composable
 fun CapabilitySetupScreen(
+    settingsRepository: AppSettingsRepository,
     onBack: () -> Unit,
     isFirstLaunch: Boolean = false
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+
+    val assistantName by settingsRepository.assistantName.collectAsState()
+
+    var assistantNameDraft by remember(assistantName) {
+        mutableStateOf(assistantName)
+    }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
 
     val checker = remember(context) {
         CapabilityChecker(context)
@@ -113,14 +130,18 @@ fun CapabilitySetupScreen(
                         Uri.parse("package:${context.packageName}")
                     )
                 } else {
-                    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                    Intent(
+                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+                    ).apply {
                         data = Uri.parse("package:${context.packageName}")
                     }
                 }
             }
 
             Capability.NOTIFICATIONS -> {
-                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                Intent(
+                    Settings.ACTION_APP_NOTIFICATION_SETTINGS
+                ).apply {
                     putExtra(
                         Settings.EXTRA_APP_PACKAGE,
                         context.packageName
@@ -129,7 +150,9 @@ fun CapabilitySetupScreen(
             }
 
             else -> {
-                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                Intent(
+                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+                ).apply {
                     data = Uri.parse("package:${context.packageName}")
                 }
             }
@@ -138,84 +161,131 @@ fun CapabilitySetupScreen(
         settingsLauncher.launch(intent)
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+    Box(
+        modifier = Modifier.fillMaxSize()
     ) {
-        Text(
-            text = if (isFirstLaunch) {
-                "Set up Kabali"
-            } else {
-                "Kabali Setup"
-            },
-            style = MaterialTheme.typography.headlineMedium
-        )
-
-        Text(
-            text = "Review the capabilities below. Allow access only " +
-                    "to features you want to use. You can change permissions " +
-                    "later in Android Settings."
-        )
-
-        results.forEach { result ->
-            val actionLabel = when (result.status) {
-                CapabilityStatus.READY -> null
-
-                CapabilityStatus.NEEDS_PERMISSION ->
-                    when (result.capability) {
-                        Capability.MICROPHONE -> "Allow microphone"
-                        Capability.CONTACTS -> "Allow contacts"
-                        Capability.NOTIFICATIONS -> "Allow notifications"
-                        else -> null
-                    }
-
-                CapabilityStatus.NEEDS_SETTINGS ->
-                    "Open Settings"
-
-                CapabilityStatus.UNAVAILABLE -> null
-            }
-
-            CapabilityCard(
-                result = result,
-                actionLabel = actionLabel,
-                onAction = {
-                    when (result.status) {
-                        CapabilityStatus.NEEDS_PERMISSION ->
-                            requestPermission(result.capability)
-
-                        CapabilityStatus.NEEDS_SETTINGS ->
-                            openCapabilitySettings(result.capability)
-
-                        else -> Unit
-                    }
-                }
-            )
-        }
-
-        Button(
-            onClick = {
-                results = checker.checkAll()
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Refresh status")
-        }
-
-        Button(
-            onClick = onBack,
-            modifier = Modifier.fillMaxWidth()
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
-                if (isFirstLaunch) {
-                    "Continue to Kabali"
+                text = if (isFirstLaunch) {
+                    "Set up $assistantName"
                 } else {
-                    "Done"
-                }
+                    "$assistantName Setup"
+                },
+                style = MaterialTheme.typography.headlineMedium
             )
+
+            Text(
+                text = "Review the capabilities below. Allow access only " +
+                        "to features you want to use. You can change permissions " +
+                        "later in Android Settings."
+            )
+
+            Text(
+                text = "Personalize Your Assistant",
+                style = MaterialTheme.typography.titleLarge
+            )
+
+            OutlinedTextField(
+                value = assistantNameDraft,
+                onValueChange = { assistantNameDraft = it },
+                label = { Text("Assistant Name") },
+                placeholder = { Text("Kabali") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Button(
+                onClick = {
+                    val savedName = assistantNameDraft.trim()
+
+                    if (savedName.isNotEmpty()) {
+                        settingsRepository.setAssistantName(savedName)
+                        assistantNameDraft = savedName
+
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar(
+                                "$savedName is now your assistant's name!",
+                                duration = androidx.compose.material3.SnackbarDuration.Short
+                            )
+                        }
+                    }
+                },
+                enabled = assistantNameDraft.isNotBlank(),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Save Assistant Name")
+            }
+
+            results.forEach { result ->
+                val actionLabel = when (result.status) {
+                    CapabilityStatus.READY -> null
+
+                    CapabilityStatus.NEEDS_PERMISSION ->
+                        when (result.capability) {
+                            Capability.MICROPHONE -> "Allow microphone"
+                            Capability.CONTACTS -> "Allow contacts"
+                            Capability.NOTIFICATIONS -> "Allow notifications"
+                            else -> null
+                        }
+
+                    CapabilityStatus.NEEDS_SETTINGS ->
+                        "Open Settings"
+
+                    CapabilityStatus.UNAVAILABLE -> null
+                }
+
+                CapabilityCard(
+                    result = result,
+                    actionLabel = actionLabel,
+                    onAction = {
+                        when (result.status) {
+                            CapabilityStatus.NEEDS_PERMISSION ->
+                                requestPermission(result.capability)
+
+                            CapabilityStatus.NEEDS_SETTINGS ->
+                                openCapabilitySettings(result.capability)
+
+                            else -> Unit
+                        }
+                    }
+                )
+            }
+
+            Button(
+                onClick = {
+                    results = checker.checkAll()
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Refresh status")
+            }
+
+            Button(
+                onClick = onBack,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    if (isFirstLaunch) {
+                        "Continue to $assistantName"
+                    } else {
+                        "Done"
+                    }
+                )
+            }
         }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(16.dp)
+        )
     }
 }
 

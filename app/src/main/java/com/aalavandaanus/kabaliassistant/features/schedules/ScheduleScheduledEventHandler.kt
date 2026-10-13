@@ -37,7 +37,7 @@ class ScheduleScheduledEventHandler(
             message = schedule.message,
             channel = NotificationChannelType.GENERAL,
             priority = NotificationPriority.HIGH,
-            category = NotificationCategory.REMINDER,
+            category = NotificationCategory.SCHEDULE,
             autoCancel = true,
             ongoing = false
         )

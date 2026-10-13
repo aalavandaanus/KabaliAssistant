@@ -1,5 +1,11 @@
+
 package com.aalavandaanus.kabaliassistant.core.scheduling
 
+import java.time.Instant
+import java.time.LocalDate
+import java.time.YearMonth
+import java.time.ZoneId
+import java.time.ZonedDateTime
 import java.util.Calendar
 
 object ScheduleCalculator {
@@ -9,228 +15,164 @@ object ScheduleCalculator {
         recurrence: Recurrence,
         nowMillis: Long = System.currentTimeMillis()
     ): Long {
-        return when (recurrence) {
-            Recurrence.None ->
-                calculateOneTime(triggerAtMillis, nowMillis)
-
-            Recurrence.Daily ->
-                calculateDaily(triggerAtMillis, nowMillis)
-
-            is Recurrence.Weekly ->
-                calculateWeekly(
-                    triggerAtMillis,
-                    recurrence.daysOfWeek,
-                    nowMillis
-                )
-
-            Recurrence.Monthly ->
-                calculateMonthly(triggerAtMillis, nowMillis)
-
-            Recurrence.Yearly ->
-                calculateYearly(triggerAtMillis, nowMillis)
-        }
-    }
-
-    private fun calculateOneTime(
-        triggerAtMillis: Long,
-        nowMillis: Long
-    ): Long {
-        if (triggerAtMillis > nowMillis) {
+        if (recurrence == Recurrence.None) {
+            require(triggerAtMillis > nowMillis) {
+                "One-time event must have a future trigger time."
+            }
             return triggerAtMillis
         }
 
-        throw IllegalArgumentException(
-            "One-time event must have a future trigger time."
-        )
-    }
-
-    private fun calculateDaily(
-        triggerAtMillis: Long,
-        nowMillis: Long
-    ): Long {
-        val trigger = Calendar.getInstance().apply {
-            timeInMillis = triggerAtMillis
+        // Preserve the chosen first occurrence for these patterns.
+        // Weekly recurrence must also honor its selected weekdays.
+        if (
+            recurrence !is Recurrence.Weekly &&
+            triggerAtMillis > nowMillis
+        ) {
+            return triggerAtMillis
         }
 
-        val candidate = Calendar.getInstance().apply {
-            timeInMillis = nowMillis
+        val zone = ZoneId.systemDefault()
+        val trigger = Instant.ofEpochMilli(triggerAtMillis).atZone(zone)
+        val now = Instant.ofEpochMilli(nowMillis).atZone(zone)
 
-            set(
-                Calendar.HOUR_OF_DAY,
-                trigger.get(Calendar.HOUR_OF_DAY)
+        return when (recurrence) {
+            Recurrence.None -> triggerAtMillis
+
+            Recurrence.Daily -> {
+                var candidate = ZonedDateTime.of(
+                    now.toLocalDate(),
+                    trigger.toLocalTime(),
+                    zone
+                )
+
+                if (!candidate.isAfter(now)) {
+                    candidate = candidate.plusDays(1)
+                }
+
+                candidate.toInstant().toEpochMilli()
+            }
+
+            is Recurrence.Weekly -> calculateWeekly(
+                trigger = trigger,
+                now = now,
+                daysOfWeek = recurrence.daysOfWeek,
+                zone = zone
             )
-            set(
-                Calendar.MINUTE,
-                trigger.get(Calendar.MINUTE)
+
+            Recurrence.Monthly -> calculateMonthly(
+                trigger = trigger,
+                now = now,
+                zone = zone
             )
-            set(
-                Calendar.SECOND,
-                trigger.get(Calendar.SECOND)
-            )
-            set(
-                Calendar.MILLISECOND,
-                trigger.get(Calendar.MILLISECOND)
+
+            Recurrence.Yearly -> calculateYearly(
+                trigger = trigger,
+                now = now,
+                zone = zone
             )
         }
-
-        if (candidate.timeInMillis <= nowMillis) {
-            candidate.add(
-                Calendar.DAY_OF_YEAR,
-                1
-            )
-        }
-
-        return candidate.timeInMillis
     }
 
     private fun calculateWeekly(
-        triggerAtMillis: Long,
+        trigger: ZonedDateTime,
+        now: ZonedDateTime,
         daysOfWeek: Set<Int>,
-        nowMillis: Long
+        zone: ZoneId
     ): Long {
         require(daysOfWeek.isNotEmpty()) {
             "Weekly recurrence requires at least one day."
         }
-
-        require(
-            daysOfWeek.all {
-                it in Calendar.SUNDAY..Calendar.SATURDAY
-            }
-        ) {
+        require(daysOfWeek.all {
+            it in Calendar.SUNDAY..Calendar.SATURDAY
+        }) {
             "Weekly recurrence contains an invalid day."
         }
 
-        val trigger = Calendar.getInstance().apply {
-            timeInMillis = triggerAtMillis
+        val triggerDate = trigger.toLocalDate()
+        val nowDate = now.toLocalDate()
+        val startDate = if (triggerDate.isAfter(nowDate)) {
+            triggerDate
+        } else {
+            nowDate
         }
 
         for (daysAhead in 0..7) {
-            val candidate = Calendar.getInstance().apply {
-                timeInMillis = nowMillis
+            val date = startDate.plusDays(daysAhead.toLong())
+            val calendarDay = date.dayOfWeek.value % 7 + 1
 
-                add(
-                    Calendar.DAY_OF_YEAR,
-                    daysAhead
-                )
+            if (calendarDay !in daysOfWeek) continue
 
-                set(
-                    Calendar.HOUR_OF_DAY,
-                    trigger.get(Calendar.HOUR_OF_DAY)
-                )
-                set(
-                    Calendar.MINUTE,
-                    trigger.get(Calendar.MINUTE)
-                )
-                set(
-                    Calendar.SECOND,
-                    trigger.get(Calendar.SECOND)
-                )
-                set(
-                    Calendar.MILLISECOND,
-                    trigger.get(Calendar.MILLISECOND)
-                )
-            }
+            val candidate = ZonedDateTime.of(
+                date,
+                trigger.toLocalTime(),
+                zone
+            )
 
             if (
-                candidate.get(Calendar.DAY_OF_WEEK) in daysOfWeek &&
-                candidate.timeInMillis > nowMillis
+                !candidate.isBefore(trigger) &&
+                candidate.isAfter(now)
             ) {
-                return candidate.timeInMillis
+                return candidate.toInstant().toEpochMilli()
             }
         }
 
-        throw IllegalStateException(
-            "Unable to calculate weekly recurrence."
-        )
+        throw IllegalStateException("Unable to calculate weekly recurrence.")
     }
 
     private fun calculateMonthly(
-        triggerAtMillis: Long,
-        nowMillis: Long
+        trigger: ZonedDateTime,
+        now: ZonedDateTime,
+        zone: ZoneId
     ): Long {
-        val trigger = Calendar.getInstance().apply {
-            timeInMillis = triggerAtMillis
+        val desiredDay = trigger.dayOfMonth
+        val time = trigger.toLocalTime()
+        var month = YearMonth.from(now)
+
+        repeat(2) {
+            val day = minOf(desiredDay, month.lengthOfMonth())
+            val candidate = ZonedDateTime.of(
+                month.atDay(day),
+                time,
+                zone
+            )
+
+            if (candidate.isAfter(now) && !candidate.isBefore(trigger)) {
+                return candidate.toInstant().toEpochMilli()
+            }
+
+            month = month.plusMonths(1)
         }
 
-        val candidate = Calendar.getInstance().apply {
-            timeInMillis = nowMillis
-
-            set(
-                Calendar.DAY_OF_MONTH,
-                trigger.get(Calendar.DAY_OF_MONTH)
-            )
-            set(
-                Calendar.HOUR_OF_DAY,
-                trigger.get(Calendar.HOUR_OF_DAY)
-            )
-            set(
-                Calendar.MINUTE,
-                trigger.get(Calendar.MINUTE)
-            )
-            set(
-                Calendar.SECOND,
-                trigger.get(Calendar.SECOND)
-            )
-            set(
-                Calendar.MILLISECOND,
-                trigger.get(Calendar.MILLISECOND)
-            )
-        }
-
-        if (candidate.timeInMillis <= nowMillis) {
-            candidate.add(
-                Calendar.MONTH,
-                1
-            )
-        }
-
-        return candidate.timeInMillis
+        throw IllegalStateException("Unable to calculate monthly recurrence.")
     }
 
     private fun calculateYearly(
-        triggerAtMillis: Long,
-        nowMillis: Long
+        trigger: ZonedDateTime,
+        now: ZonedDateTime,
+        zone: ZoneId
     ): Long {
-        val trigger = Calendar.getInstance().apply {
-            timeInMillis = triggerAtMillis
+        val month = trigger.month
+        val desiredDay = trigger.dayOfMonth
+        val time = trigger.toLocalTime()
+        var year = now.year
+
+        repeat(2) {
+            val monthInYear = YearMonth.of(year, month)
+            val day = minOf(desiredDay, monthInYear.lengthOfMonth())
+
+            val candidate = ZonedDateTime.of(
+                LocalDate.of(year, month, day),
+                time,
+                zone
+            )
+
+            if (candidate.isAfter(now) && !candidate.isBefore(trigger)) {
+                return candidate.toInstant().toEpochMilli()
+            }
+
+            year++
         }
 
-        val candidate = Calendar.getInstance().apply {
-            timeInMillis = nowMillis
-
-            set(
-                Calendar.MONTH,
-                trigger.get(Calendar.MONTH)
-            )
-            set(
-                Calendar.DAY_OF_MONTH,
-                trigger.get(Calendar.DAY_OF_MONTH)
-            )
-            set(
-                Calendar.HOUR_OF_DAY,
-                trigger.get(Calendar.HOUR_OF_DAY)
-            )
-            set(
-                Calendar.MINUTE,
-                trigger.get(Calendar.MINUTE)
-            )
-            set(
-                Calendar.SECOND,
-                trigger.get(Calendar.SECOND)
-            )
-            set(
-                Calendar.MILLISECOND,
-                trigger.get(Calendar.MILLISECOND)
-            )
-        }
-
-        if (candidate.timeInMillis <= nowMillis) {
-            candidate.add(
-                Calendar.YEAR,
-                1
-            )
-        }
-
-        return candidate.timeInMillis
+        throw IllegalStateException("Unable to calculate yearly recurrence.")
     }
 }

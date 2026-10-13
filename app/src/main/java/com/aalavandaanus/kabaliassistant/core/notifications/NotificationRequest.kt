@@ -29,7 +29,8 @@ enum class NotificationCategory {
     DEFAULT,
     ALARM,
     REMINDER,
-    EVENT
+    EVENT,
+    SCHEDULE
 }
 
 enum class LockScreenVisibility {
