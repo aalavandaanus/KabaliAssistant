@@ -32,6 +32,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
 import com.aalavandaanus.kabaliassistant.KabaliApplication
+import com.aalavandaanus.kabaliassistant.features.backup.BackupRestoreScreen
 import com.aalavandaanus.kabaliassistant.features.alarms.AddAlarmScreen
 import com.aalavandaanus.kabaliassistant.features.alarms.AlarmListScreen
 import com.aalavandaanus.kabaliassistant.features.alarms.AlarmViewModel
@@ -80,6 +81,7 @@ object Routes {
     const val FAMILY_TREE = "family_tree"
     const val LISTENING = "listening"
     const val PROFILE = "profile"
+    const val BACKUP_RESTORE = "backup_restore"
 
     fun editReminder(scheduleId: Long) =
         "edit_schedule/$scheduleId"
@@ -692,10 +694,18 @@ fun AppNavigation(
                 composable(Routes.PROFILE) {
                     ProfileScreen(
                         onOpenBackupRestore = {
-                            openBackupRestoreOnSettingsLaunch = true
-                            navController.navigate(Routes.SETTINGS) {
+                            navController.navigate(Routes.BACKUP_RESTORE) {
                                 launchSingleTop = true
                             }
+                        }
+                    )
+                }
+
+                // BACKUP & RESTORE
+                composable(Routes.BACKUP_RESTORE) {
+                    BackupRestoreScreen(
+                        onBack = {
+                            navController.popBackStack()
                         }
                     )
                 }
