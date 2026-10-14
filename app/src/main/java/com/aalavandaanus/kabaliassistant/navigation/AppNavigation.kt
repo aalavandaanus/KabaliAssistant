@@ -16,6 +16,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,6 +55,7 @@ import com.aalavandaanus.kabaliassistant.features.schedules.ScheduleViewModel
 import com.aalavandaanus.kabaliassistant.features.schedules.ScheduleViewModelFactory
 import com.aalavandaanus.kabaliassistant.features.settings.CapabilitySetupScreen
 import com.aalavandaanus.kabaliassistant.features.settings.SettingsScreen
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 
 object Routes {
@@ -70,18 +72,24 @@ object Routes {
     const val SETTINGS = "settings"
     const val CAPABILITY_SETUP = "capability_setup"
 
-    // Existing route identifiers are retained to minimize navigation changes.
+    // Existing route identifiers are retained.
     const val REMINDERS = "schedules"
     const val ADD_REMINDER = "add_schedule"
     const val EDIT_REMINDER = "edit_schedule/{scheduleId}"
-    const val MANAGE_SCHEDULE_CATEGORIES = "manage_schedule_categories"
-
-    fun editReminder(scheduleId: Long) = "edit_schedule/$scheduleId"
-    fun editAlarm(alarmId: Long) = "edit_alarm/$alarmId"
-    fun editBirthday(birthdayId: Long) = "edit_birthday/$birthdayId"
+    const val MANAGE_SCHEDULE_CATEGORIES =
+        "manage_schedule_categories"
 
     const val LISTENING = "listening"
     const val PROFILE = "profile"
+
+    fun editReminder(scheduleId: Long) =
+        "edit_schedule/$scheduleId"
+
+    fun editAlarm(alarmId: Long) =
+        "edit_alarm/$alarmId"
+
+    fun editBirthday(birthdayId: Long) =
+        "edit_birthday/$birthdayId"
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -91,8 +99,10 @@ fun AppNavigation(
     application: KabaliApplication
 ) {
     val context = LocalContext.current
+
     val assistantName by
     application.appSettingsRepository.assistantName.collectAsState()
+
     val onboardingPreferences = remember(context) {
         context.getSharedPreferences(
             "kabali_onboarding",
@@ -112,11 +122,52 @@ fun AppNavigation(
     val drawerState = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
-    val backStackEntry by navController.currentBackStackEntryAsState()
+    val backStackEntry by
+    navController.currentBackStackEntryAsState()
+
     val currentRoute = backStackEntry?.destination?.route
 
+    // Open Backup & Restore after a new Google sign-in.
+    var openBackupRestoreAfterSignIn by remember {
+        mutableStateOf(false)
+    }
+
+    val firebaseAuth = remember {
+        FirebaseAuth.getInstance()
+    }
+
+    DisposableEffect(firebaseAuth, navController) {
+        // Do not treat an existing session at app launch
+        // as a new sign-in event.
+        var previousUserId = firebaseAuth.currentUser?.uid
+
+        val listener = FirebaseAuth.AuthStateListener { auth ->
+            val currentUserId = auth.currentUser?.uid
+
+            if (
+                previousUserId == null &&
+                currentUserId != null
+            ) {
+                openBackupRestoreAfterSignIn = true
+
+                navController.navigate(Routes.SETTINGS) {
+                    launchSingleTop = true
+                }
+            }
+
+            previousUserId = currentUserId
+        }
+
+        firebaseAuth.addAuthStateListener(listener)
+
+        onDispose {
+            firebaseAuth.removeAuthStateListener(listener)
+        }
+    }
+
     val isInitialSetup =
-        currentRoute == Routes.CAPABILITY_SETUP && !onboardingComplete
+        currentRoute == Routes.CAPABILITY_SETUP &&
+                !onboardingComplete
 
     val drawerRoute = when (currentRoute) {
         Routes.HOME -> Routes.HOME
@@ -137,11 +188,16 @@ fun AppNavigation(
         Routes.SETTINGS -> Routes.SETTINGS
 
         Routes.CAPABILITY_SETUP -> {
-            if (onboardingComplete) Routes.SETTINGS else null
+            if (onboardingComplete) {
+                Routes.SETTINGS
+            } else {
+                null
+            }
         }
 
         Routes.LISTENING -> Routes.LISTENING
         Routes.PROFILE -> Routes.PROFILE
+
         else -> null
     }
 
@@ -162,6 +218,7 @@ fun AppNavigation(
                             popUpTo(Routes.HOME) {
                                 saveState = false
                             }
+
                             launchSingleTop = true
                             restoreState = false
                         }
@@ -176,15 +233,32 @@ fun AppNavigation(
                     title = {
                         Text(
                             when {
-                                isInitialSetup -> "Set up $assistantName"
-                                drawerRoute == Routes.HOME -> "Home"
-                                drawerRoute == Routes.ALARMS -> "Alarms"
-                                drawerRoute == Routes.REMINDERS -> "Schedules"
-                                drawerRoute == Routes.BIRTHDAYS -> "Birthdays"
-                                drawerRoute == Routes.SETTINGS -> "Settings"
-                                drawerRoute == Routes.LISTENING -> "Listening"
-                                drawerRoute == Routes.PROFILE -> "My Profile"
-                                else -> "$assistantName Assistant"
+                                isInitialSetup ->
+                                    "Set up $assistantName"
+
+                                drawerRoute == Routes.HOME ->
+                                    "Home"
+
+                                drawerRoute == Routes.ALARMS ->
+                                    "Alarms"
+
+                                drawerRoute == Routes.REMINDERS ->
+                                    "Schedules"
+
+                                drawerRoute == Routes.BIRTHDAYS ->
+                                    "Birthdays"
+
+                                drawerRoute == Routes.SETTINGS ->
+                                    "Settings"
+
+                                drawerRoute == Routes.LISTENING ->
+                                    "Listening"
+
+                                drawerRoute == Routes.PROFILE ->
+                                    "My Profile"
+
+                                else ->
+                                    "$assistantName Assistant"
                             }
                         )
                     },
@@ -217,14 +291,19 @@ fun AppNavigation(
                 },
                 modifier = Modifier.padding(paddingValues)
             ) {
+
                 // HOME
                 composable(Routes.HOME) {
                     val homeViewModel: HomeViewModel = viewModel(
                         factory = HomeViewModelFactory(
-                            alarmRepository = application.alarmRepository,
-                            reminderRepository = application.reminderRepository,
-                            birthdayRepository = application.birthdayRepository,
-                            scheduleRepository = application.scheduleRepository,
+                            alarmRepository =
+                                application.alarmRepository,
+                            reminderRepository =
+                                application.reminderRepository,
+                            birthdayRepository =
+                                application.birthdayRepository,
+                            scheduleRepository =
+                                application.scheduleRepository,
                             scheduleCategoryRepository =
                                 application.scheduleCategoryRepository
                         )
@@ -256,12 +335,36 @@ fun AppNavigation(
                     ListeningScreen()
                 }
 
+                // SETTINGS
+                // Keep only one Settings destination.
+                composable(Routes.SETTINGS) {
+                    SettingsScreen(
+                        settingsRepository =
+                            application.appSettingsRepository,
+                        onBack = {
+                            navController.popBackStack()
+                        },
+                        onOpenCapabilitySetup = {
+                            navController.navigate(
+                                Routes.CAPABILITY_SETUP
+                            )
+                        },
+                        openBackupRestoreOnLaunch =
+                            openBackupRestoreAfterSignIn,
+                        onBackupRestoreLaunchHandled = {
+                            openBackupRestoreAfterSignIn = false
+                        }
+                    )
+                }
+
                 // ALARMS
                 composable(Routes.ALARMS) {
                     val alarmViewModel: AlarmViewModel = viewModel(
                         factory = AlarmViewModelFactory(
-                            alarmRepository = application.alarmRepository,
-                            alarmService = application.alarmService
+                            alarmRepository =
+                                application.alarmRepository,
+                            alarmService =
+                                application.alarmService
                         )
                     )
 
@@ -271,26 +374,36 @@ fun AppNavigation(
                             navController.navigate(Routes.ADD_ALARM)
                         },
                         onEditAlarm = { alarmId ->
-                            navController.navigate(Routes.editAlarm(alarmId))
+                            navController.navigate(
+                                Routes.editAlarm(alarmId)
+                            )
                         }
                     )
                 }
 
+                // ADD ALARM
                 composable(Routes.ADD_ALARM) {
                     val alarmViewModel: AlarmViewModel = viewModel(
                         factory = AlarmViewModelFactory(
-                            alarmRepository = application.alarmRepository,
-                            alarmService = application.alarmService
+                            alarmRepository =
+                                application.alarmRepository,
+                            alarmService =
+                                application.alarmService
                         )
                     )
 
                     AddAlarmScreen(
                         viewModel = alarmViewModel,
-                        onSaved = { navController.popBackStack() },
-                        onCancel = { navController.popBackStack() }
+                        onSaved = {
+                            navController.popBackStack()
+                        },
+                        onCancel = {
+                            navController.popBackStack()
+                        }
                     )
                 }
 
+                // EDIT ALARM
                 composable(
                     route = Routes.EDIT_ALARM,
                     arguments = listOf(
@@ -299,45 +412,63 @@ fun AppNavigation(
                         }
                     )
                 ) { entry ->
-                    val alarmId = entry.arguments?.getLong("alarmId")
-                        ?: return@composable
+                    val alarmId =
+                        entry.arguments?.getLong("alarmId")
+                            ?: return@composable
 
                     val alarmViewModel: AlarmViewModel = viewModel(
                         factory = AlarmViewModelFactory(
-                            alarmRepository = application.alarmRepository,
-                            alarmService = application.alarmService
+                            alarmRepository =
+                                application.alarmRepository,
+                            alarmService =
+                                application.alarmService
                         )
                     )
 
-                    val alarms by alarmViewModel.alarms.collectAsState()
-                    val alarm = alarms.firstOrNull { it.id == alarmId }
+                    val alarms by
+                    alarmViewModel.alarms.collectAsState()
+
+                    val alarm = alarms.firstOrNull {
+                        it.id == alarmId
+                    }
 
                     if (alarm != null) {
                         EditAlarmScreen(
                             alarm = alarm,
                             viewModel = alarmViewModel,
-                            onSaved = { navController.popBackStack() },
-                            onDeleted = { navController.popBackStack() },
-                            onCancel = { navController.popBackStack() }
+                            onSaved = {
+                                navController.popBackStack()
+                            },
+                            onDeleted = {
+                                navController.popBackStack()
+                            },
+                            onCancel = {
+                                navController.popBackStack()
+                            }
                         )
                     }
                 }
 
                 // SCHEDULES
                 composable(Routes.REMINDERS) {
-                    val scheduleViewModel: ScheduleViewModel = viewModel(
-                        factory = ScheduleViewModelFactory(
-                            scheduleRepository = application.scheduleRepository,
-                            categoryRepository =
-                                application.scheduleCategoryRepository,
-                            scheduleService = application.scheduleService
+                    val scheduleViewModel: ScheduleViewModel =
+                        viewModel(
+                            factory = ScheduleViewModelFactory(
+                                scheduleRepository =
+                                    application.scheduleRepository,
+                                categoryRepository =
+                                    application.scheduleCategoryRepository,
+                                scheduleService =
+                                    application.scheduleService
+                            )
                         )
-                    )
 
                     ScheduleListScreen(
                         viewModel = scheduleViewModel,
                         onAddSchedule = {
-                            navController.navigate(Routes.ADD_REMINDER)
+                            navController.navigate(
+                                Routes.ADD_REMINDER
+                            )
                         },
                         onEditSchedule = { scheduleId ->
                             navController.navigate(
@@ -354,14 +485,17 @@ fun AppNavigation(
 
                 // ADD SCHEDULE
                 composable(Routes.ADD_REMINDER) {
-                    val scheduleViewModel: ScheduleViewModel = viewModel(
-                        factory = ScheduleViewModelFactory(
-                            scheduleRepository = application.scheduleRepository,
-                            categoryRepository =
-                                application.scheduleCategoryRepository,
-                            scheduleService = application.scheduleService
+                    val scheduleViewModel: ScheduleViewModel =
+                        viewModel(
+                            factory = ScheduleViewModelFactory(
+                                scheduleRepository =
+                                    application.scheduleRepository,
+                                categoryRepository =
+                                    application.scheduleCategoryRepository,
+                                scheduleService =
+                                    application.scheduleService
+                            )
                         )
-                    )
 
                     val categories by
                     scheduleViewModel.categories.collectAsState()
@@ -370,8 +504,12 @@ fun AppNavigation(
                         viewModel = scheduleViewModel,
                         categories = categories,
                         existingSchedule = null,
-                        onSaved = { navController.popBackStack() },
-                        onCancel = { navController.popBackStack() }
+                        onSaved = {
+                            navController.popBackStack()
+                        },
+                        onCancel = {
+                            navController.popBackStack()
+                        }
                     )
                 }
 
@@ -388,45 +526,59 @@ fun AppNavigation(
                         entry.arguments?.getLong("scheduleId")
                             ?: return@composable
 
-                    val scheduleViewModel: ScheduleViewModel = viewModel(
-                        factory = ScheduleViewModelFactory(
-                            scheduleRepository = application.scheduleRepository,
-                            categoryRepository =
-                                application.scheduleCategoryRepository,
-                            scheduleService = application.scheduleService
+                    val scheduleViewModel: ScheduleViewModel =
+                        viewModel(
+                            factory = ScheduleViewModelFactory(
+                                scheduleRepository =
+                                    application.scheduleRepository,
+                                categoryRepository =
+                                    application.scheduleCategoryRepository,
+                                scheduleService =
+                                    application.scheduleService
+                            )
                         )
-                    )
 
                     val schedules by
                     scheduleViewModel.schedules.collectAsState()
+
                     val categories by
                     scheduleViewModel.categories.collectAsState()
 
-                    val schedule =
-                        schedules.firstOrNull { it.id == scheduleId }
+                    val schedule = schedules.firstOrNull {
+                        it.id == scheduleId
+                    }
 
                     if (schedule != null) {
                         EditScheduleScreen(
                             viewModel = scheduleViewModel,
                             categories = categories,
                             existingSchedule = schedule,
-                            onSaved = { navController.popBackStack() },
-                            onDeleted = { navController.popBackStack() },
-                            onCancel = { navController.popBackStack() }
+                            onSaved = {
+                                navController.popBackStack()
+                            },
+                            onDeleted = {
+                                navController.popBackStack()
+                            },
+                            onCancel = {
+                                navController.popBackStack()
+                            }
                         )
                     }
                 }
 
                 // MANAGE SCHEDULE CATEGORIES
                 composable(Routes.MANAGE_SCHEDULE_CATEGORIES) {
-                    val scheduleViewModel: ScheduleViewModel = viewModel(
-                        factory = ScheduleViewModelFactory(
-                            scheduleRepository = application.scheduleRepository,
-                            categoryRepository =
-                                application.scheduleCategoryRepository,
-                            scheduleService = application.scheduleService
+                    val scheduleViewModel: ScheduleViewModel =
+                        viewModel(
+                            factory = ScheduleViewModelFactory(
+                                scheduleRepository =
+                                    application.scheduleRepository,
+                                categoryRepository =
+                                    application.scheduleCategoryRepository,
+                                scheduleService =
+                                    application.scheduleService
+                            )
                         )
-                    )
 
                     val categories by
                     scheduleViewModel.categories.collectAsState()
@@ -434,23 +586,30 @@ fun AppNavigation(
                     ManageScheduleCategoriesScreen(
                         viewModel = scheduleViewModel,
                         categories = categories,
-                        onBack = { navController.popBackStack() }
+                        onBack = {
+                            navController.popBackStack()
+                        }
                     )
                 }
 
                 // BIRTHDAYS
                 composable(Routes.BIRTHDAYS) {
-                    val birthdayViewModel: BirthdayViewModel = viewModel(
-                        factory = BirthdayViewModelFactory(
-                            birthdayRepository = application.birthdayRepository,
-                            birthdayService = application.birthdayService
+                    val birthdayViewModel: BirthdayViewModel =
+                        viewModel(
+                            factory = BirthdayViewModelFactory(
+                                birthdayRepository =
+                                    application.birthdayRepository,
+                                birthdayService =
+                                    application.birthdayService
+                            )
                         )
-                    )
 
                     BirthdayListScreen(
                         viewModel = birthdayViewModel,
                         onAddBirthday = {
-                            navController.navigate(Routes.ADD_BIRTHDAY)
+                            navController.navigate(
+                                Routes.ADD_BIRTHDAY
+                            )
                         },
                         onEditBirthday = { birthdayId ->
                             navController.navigate(
@@ -460,20 +619,27 @@ fun AppNavigation(
                     )
                 }
 
+                // ADD BIRTHDAY
                 composable(Routes.ADD_BIRTHDAY) {
-                    val birthdayViewModel: BirthdayViewModel = viewModel(
-                        factory = BirthdayViewModelFactory(
-                            birthdayRepository = application.birthdayRepository,
-                            birthdayService = application.birthdayService
+                    val birthdayViewModel: BirthdayViewModel =
+                        viewModel(
+                            factory = BirthdayViewModelFactory(
+                                birthdayRepository =
+                                    application.birthdayRepository,
+                                birthdayService =
+                                    application.birthdayService
+                            )
                         )
-                    )
 
                     AddBirthdayScreen(
                         viewModel = birthdayViewModel,
-                        onBack = { navController.popBackStack() }
+                        onBack = {
+                            navController.popBackStack()
+                        }
                     )
                 }
 
+                // EDIT BIRTHDAY
                 composable(
                     route = Routes.EDIT_BIRTHDAY,
                     arguments = listOf(
@@ -486,46 +652,46 @@ fun AppNavigation(
                         entry.arguments?.getLong("birthdayId")
                             ?: return@composable
 
-                    val birthdayViewModel: BirthdayViewModel = viewModel(
-                        factory = BirthdayViewModelFactory(
-                            birthdayRepository = application.birthdayRepository,
-                            birthdayService = application.birthdayService
+                    val birthdayViewModel: BirthdayViewModel =
+                        viewModel(
+                            factory = BirthdayViewModelFactory(
+                                birthdayRepository =
+                                    application.birthdayRepository,
+                                birthdayService =
+                                    application.birthdayService
+                            )
                         )
-                    )
 
                     val birthdays by
                     birthdayViewModel.birthdays.collectAsState()
-                    val birthday =
-                        birthdays.firstOrNull { it.id == birthdayId }
+
+                    val birthday = birthdays.firstOrNull {
+                        it.id == birthdayId
+                    }
 
                     if (birthday != null) {
                         EditBirthdayScreen(
                             birthday = birthday,
                             viewModel = birthdayViewModel,
-                            onSaved = { navController.popBackStack() },
-                            onDeleted = { navController.popBackStack() },
-                            onCancel = { navController.popBackStack() }
+                            onSaved = {
+                                navController.popBackStack()
+                            },
+                            onDeleted = {
+                                navController.popBackStack()
+                            },
+                            onCancel = {
+                                navController.popBackStack()
+                            }
                         )
                     }
-                }
-
-                // SETTINGS
-                composable(Routes.SETTINGS) {
-                    SettingsScreen(
-                        settingsRepository =
-                            application.appSettingsRepository,
-                        onBack = { navController.popBackStack() },
-                        onOpenCapabilitySetup = {
-                            navController.navigate(Routes.CAPABILITY_SETUP)
-                        }
-                    )
                 }
 
                 // CAPABILITY SETUP
                 composable(Routes.CAPABILITY_SETUP) {
                     CapabilitySetupScreen(
                         isFirstLaunch = !onboardingComplete,
-                        settingsRepository = application.appSettingsRepository,
+                        settingsRepository =
+                            application.appSettingsRepository,
                         onBack = {
                             if (!onboardingComplete) {
                                 onboardingPreferences.edit()
@@ -538,9 +704,12 @@ fun AppNavigation(
                                 onboardingComplete = true
 
                                 navController.navigate(Routes.HOME) {
-                                    popUpTo(Routes.CAPABILITY_SETUP) {
+                                    popUpTo(
+                                        Routes.CAPABILITY_SETUP
+                                    ) {
                                         inclusive = true
                                     }
+
                                     launchSingleTop = true
                                 }
                             } else {

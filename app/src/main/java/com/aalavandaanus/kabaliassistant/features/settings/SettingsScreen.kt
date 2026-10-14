@@ -1,3 +1,4 @@
+
 package com.aalavandaanus.kabaliassistant.features.settings
 
 import android.app.TimePickerDialog
@@ -18,7 +19,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Mic
@@ -37,6 +37,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -48,6 +49,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.aalavandaanus.kabaliassistant.data.settings.AppSettingsRepository
+import com.aalavandaanus.kabaliassistant.features.backup.BackupRestoreScreen
 import com.aalavandaanus.kabaliassistant.features.birthdays.BirthdayWorkScheduler
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -65,9 +67,31 @@ private enum class SettingsSection {
 fun SettingsScreen(
     settingsRepository: AppSettingsRepository,
     onBack: () -> Unit,
-    onOpenCapabilitySetup: () -> Unit
+    onOpenCapabilitySetup: () -> Unit,
+    openBackupRestoreOnLaunch: Boolean = false,
+    onBackupRestoreLaunchHandled: () -> Unit = {}
 ) {
     val context = LocalContext.current
+
+    var showBackupRestore by remember {
+        mutableStateOf(false)
+    }
+
+    LaunchedEffect(openBackupRestoreOnLaunch) {
+        if (openBackupRestoreOnLaunch) {
+            showBackupRestore = true
+            onBackupRestoreLaunchHandled()
+        }
+    }
+
+    if (showBackupRestore) {
+        BackupRestoreScreen(
+            onBack = {
+                showBackupRestore = false
+            }
+        )
+        return
+    }
 
     var expandedSection by remember {
         mutableStateOf<SettingsSection?>(null)
@@ -221,10 +245,11 @@ fun SettingsScreen(
                             notificationHour = hourOfDay
                             notificationMinute = minute
 
-                            settingsRepository.setBirthdayNotificationTime(
-                                hourOfDay,
-                                minute
-                            )
+                            settingsRepository
+                                .setBirthdayNotificationTime(
+                                    hourOfDay,
+                                    minute
+                                )
 
                             BirthdayWorkScheduler.reschedule(
                                 context = context,
@@ -311,6 +336,22 @@ fun SettingsScreen(
                 title = "Kabali Assistant",
                 description = "Personal assistant settings and preferences."
             )
+
+            HorizontalDivider()
+
+            SettingsInfoRow(
+                title = "Kabali Backup & Restore",
+                description = "Back up your Kabali data to your own Google Drive and restore one of the three latest versions."
+            )
+
+            OutlinedButton(
+                onClick = {
+                    showBackupRestore = true
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Open Backup & Restore")
+            }
         }
 
         Spacer(modifier = Modifier.size(4.dp))
