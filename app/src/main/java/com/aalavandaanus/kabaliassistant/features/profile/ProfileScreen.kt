@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -23,9 +22,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.LogIn
-import androidx.compose.material.icons.filled.LogOut
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Login
+import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -253,7 +251,7 @@ fun ProfileScreen(
                             )
                         } else {
                             androidx.compose.material3.Icon(
-                                imageVector = Icons.Default.LogIn,
+                                imageVector = Icons.Default.Login,
                                 contentDescription = null
                             )
                         }
@@ -286,7 +284,7 @@ fun ProfileScreen(
                         enabled = !busy
                     ) {
                         androidx.compose.material3.Icon(
-                            imageVector = Icons.Default.LogOut,
+                            imageVector = Icons.Default.Logout,
                             contentDescription = null,
                             tint = KabaliPurple
                         )
