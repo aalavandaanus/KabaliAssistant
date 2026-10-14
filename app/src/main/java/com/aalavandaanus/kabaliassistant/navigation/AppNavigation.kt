@@ -16,7 +16,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,6 +32,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
 import com.aalavandaanus.kabaliassistant.KabaliApplication
+import com.aalavandaanus.kabaliassistant.features.backup.BackupRestoreScreen
 import com.aalavandaanus.kabaliassistant.features.alarms.AddAlarmScreen
 import com.aalavandaanus.kabaliassistant.features.alarms.AlarmListScreen
 import com.aalavandaanus.kabaliassistant.features.alarms.AlarmViewModel
@@ -55,7 +55,6 @@ import com.aalavandaanus.kabaliassistant.features.schedules.ScheduleViewModel
 import com.aalavandaanus.kabaliassistant.features.schedules.ScheduleViewModelFactory
 import com.aalavandaanus.kabaliassistant.features.settings.CapabilitySetupScreen
 import com.aalavandaanus.kabaliassistant.features.settings.SettingsScreen
-import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 import com.aalavandaanus.kabaliassistant.features.familytree.FamilyTreeScreen
 
@@ -82,6 +81,7 @@ object Routes {
     const val FAMILY_TREE = "family_tree"
     const val LISTENING = "listening"
     const val PROFILE = "profile"
+    const val BACKUP_RESTORE = "backup_restore"
 
     fun editReminder(scheduleId: Long) =
         "edit_schedule/$scheduleId"
@@ -127,44 +127,6 @@ fun AppNavigation(
     navController.currentBackStackEntryAsState()
 
     val currentRoute = backStackEntry?.destination?.route
-
-    // Open Backup & Restore after a new Google sign-in.
-    var openBackupRestoreAfterSignIn by remember {
-        mutableStateOf(false)
-    }
-
-    val firebaseAuth = remember {
-        FirebaseAuth.getInstance()
-    }
-
-    DisposableEffect(firebaseAuth, navController) {
-        // Do not treat an existing session at app launch
-        // as a new sign-in event.
-        var previousUserId = firebaseAuth.currentUser?.uid
-
-        val listener = FirebaseAuth.AuthStateListener { auth ->
-            val currentUserId = auth.currentUser?.uid
-
-            if (
-                previousUserId == null &&
-                currentUserId != null
-            ) {
-                openBackupRestoreAfterSignIn = true
-
-                navController.navigate(Routes.SETTINGS) {
-                    launchSingleTop = true
-                }
-            }
-
-            previousUserId = currentUserId
-        }
-
-        firebaseAuth.addAuthStateListener(listener)
-
-        onDispose {
-            firebaseAuth.removeAuthStateListener(listener)
-        }
-    }
 
     val isInitialSetup =
         currentRoute == Routes.CAPABILITY_SETUP &&
@@ -260,6 +222,9 @@ fun AppNavigation(
 
                                 drawerRoute == Routes.FAMILY_TREE -> "Family Tree"
 
+                                currentRoute == Routes.BACKUP_RESTORE ->
+                                    "Backup & Restore"
+
                                 else ->
                                     "$assistantName Assistant"
                             }
@@ -352,11 +317,6 @@ fun AppNavigation(
                                 Routes.CAPABILITY_SETUP
                             )
                         },
-                        openBackupRestoreOnLaunch =
-                            openBackupRestoreAfterSignIn,
-                        onBackupRestoreLaunchHandled = {
-                            openBackupRestoreAfterSignIn = false
-                        }
                     )
                 }
 
@@ -724,7 +684,22 @@ fun AppNavigation(
 
                 // PROFILE
                 composable(Routes.PROFILE) {
-                    ProfileScreen()
+                    ProfileScreen(
+                        onOpenBackupRestore = {
+                            navController.navigate(Routes.BACKUP_RESTORE) {
+                                launchSingleTop = true
+                            }
+                        }
+                    )
+                }
+
+                // BACKUP & RESTORE
+                composable(Routes.BACKUP_RESTORE) {
+                    BackupRestoreScreen(
+                        onBack = {
+                            navController.popBackStack()
+                        }
+                    )
                 }
 
                 composable(Routes.FAMILY_TREE) {
