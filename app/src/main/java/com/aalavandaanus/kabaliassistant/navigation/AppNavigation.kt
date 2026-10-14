@@ -128,12 +128,6 @@ fun AppNavigation(
 
     val currentRoute = backStackEntry?.destination?.route
 
-    // Backup & Restore opens only after an explicit request from Profile.
-    // Signing in alone must never navigate or trigger a backup/restore flow.
-    var openBackupRestoreOnSettingsLaunch by remember {
-        mutableStateOf(false)
-    }
-
     val isInitialSetup =
         currentRoute == Routes.CAPABILITY_SETUP &&
                 !onboardingComplete
