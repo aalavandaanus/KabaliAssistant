@@ -317,11 +317,6 @@ fun AppNavigation(
                                 Routes.CAPABILITY_SETUP
                             )
                         },
-                        openBackupRestoreOnLaunch =
-                            openBackupRestoreOnSettingsLaunch,
-                        onBackupRestoreLaunchHandled = {
-                            openBackupRestoreAfterSignIn = false
-                        }
                     )
                 }
 
