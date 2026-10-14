@@ -222,6 +222,9 @@ fun AppNavigation(
 
                                 drawerRoute == Routes.FAMILY_TREE -> "Family Tree"
 
+                                currentRoute == Routes.BACKUP_RESTORE ->
+                                    "Backup & Restore"
+
                                 else ->
                                     "$assistantName Assistant"
                             }
