@@ -16,7 +16,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -55,7 +54,6 @@ import com.aalavandaanus.kabaliassistant.features.schedules.ScheduleViewModel
 import com.aalavandaanus.kabaliassistant.features.schedules.ScheduleViewModelFactory
 import com.aalavandaanus.kabaliassistant.features.settings.CapabilitySetupScreen
 import com.aalavandaanus.kabaliassistant.features.settings.SettingsScreen
-import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 import com.aalavandaanus.kabaliassistant.features.familytree.FamilyTreeScreen
 
@@ -128,42 +126,10 @@ fun AppNavigation(
 
     val currentRoute = backStackEntry?.destination?.route
 
-    // Open Backup & Restore after a new Google sign-in.
-    var openBackupRestoreAfterSignIn by remember {
+    // Backup & Restore opens only after an explicit request from Profile.
+    // Signing in alone must never navigate or trigger a backup/restore flow.
+    var openBackupRestoreOnSettingsLaunch by remember {
         mutableStateOf(false)
-    }
-
-    val firebaseAuth = remember {
-        FirebaseAuth.getInstance()
-    }
-
-    DisposableEffect(firebaseAuth, navController) {
-        // Do not treat an existing session at app launch
-        // as a new sign-in event.
-        var previousUserId = firebaseAuth.currentUser?.uid
-
-        val listener = FirebaseAuth.AuthStateListener { auth ->
-            val currentUserId = auth.currentUser?.uid
-
-            if (
-                previousUserId == null &&
-                currentUserId != null
-            ) {
-                openBackupRestoreAfterSignIn = true
-
-                navController.navigate(Routes.SETTINGS) {
-                    launchSingleTop = true
-                }
-            }
-
-            previousUserId = currentUserId
-        }
-
-        firebaseAuth.addAuthStateListener(listener)
-
-        onDispose {
-            firebaseAuth.removeAuthStateListener(listener)
-        }
     }
 
     val isInitialSetup =
@@ -353,7 +319,7 @@ fun AppNavigation(
                             )
                         },
                         openBackupRestoreOnLaunch =
-                            openBackupRestoreAfterSignIn,
+                            openBackupRestoreOnSettingsLaunch,
                         onBackupRestoreLaunchHandled = {
                             openBackupRestoreAfterSignIn = false
                         }
@@ -724,7 +690,14 @@ fun AppNavigation(
 
                 // PROFILE
                 composable(Routes.PROFILE) {
-                    ProfileScreen()
+                    ProfileScreen(
+                        onOpenBackupRestore = {
+                            openBackupRestoreOnSettingsLaunch = true
+                            navController.navigate(Routes.SETTINGS) {
+                                launchSingleTop = true
+                            }
+                        }
+                    )
                 }
 
                 composable(Routes.FAMILY_TREE) {
