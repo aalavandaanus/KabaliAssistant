@@ -57,6 +57,7 @@ import com.aalavandaanus.kabaliassistant.features.settings.CapabilitySetupScreen
 import com.aalavandaanus.kabaliassistant.features.settings.SettingsScreen
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
+import com.aalavandaanus.kabaliassistant.features.familytree.FamilyTreeScreen
 
 object Routes {
     const val HOME = "home"
@@ -78,7 +79,7 @@ object Routes {
     const val EDIT_REMINDER = "edit_schedule/{scheduleId}"
     const val MANAGE_SCHEDULE_CATEGORIES =
         "manage_schedule_categories"
-
+    const val FAMILY_TREE = "family_tree"
     const val LISTENING = "listening"
     const val PROFILE = "profile"
 
@@ -186,7 +187,7 @@ fun AppNavigation(
         Routes.EDIT_BIRTHDAY -> Routes.BIRTHDAYS
 
         Routes.SETTINGS -> Routes.SETTINGS
-
+        Routes.FAMILY_TREE -> Routes.FAMILY_TREE
         Routes.CAPABILITY_SETUP -> {
             if (onboardingComplete) {
                 Routes.SETTINGS
@@ -256,6 +257,8 @@ fun AppNavigation(
 
                                 drawerRoute == Routes.PROFILE ->
                                     "My Profile"
+
+                                drawerRoute == Routes.FAMILY_TREE -> "Family Tree"
 
                                 else ->
                                     "$assistantName Assistant"
@@ -722,6 +725,10 @@ fun AppNavigation(
                 // PROFILE
                 composable(Routes.PROFILE) {
                     ProfileScreen()
+                }
+
+                composable(Routes.FAMILY_TREE) {
+                    FamilyTreeScreen()
                 }
             }
         }

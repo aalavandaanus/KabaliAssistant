@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.AccountTree
 
 @Composable
 fun NavigationDrawer(
@@ -113,6 +114,19 @@ fun NavigationDrawer(
                 modifier = Modifier.padding(
                     horizontal = 12.dp
                 )
+            )
+
+            NavigationDrawerItem(
+                label = { Text("Family Tree") },
+                selected = currentRoute == Routes.FAMILY_TREE,
+                onClick = { onNavigate(Routes.FAMILY_TREE) },
+                icon = {
+                    androidx.compose.material3.Icon(
+                        imageVector = Icons.Default.AccountTree,
+                        contentDescription = "Family Tree"
+                    )
+                },
+                modifier = Modifier.padding(horizontal = 12.dp)
             )
 
             NavigationDrawerItem(
