@@ -36,7 +36,7 @@ import com.aalavandaanus.kabaliassistant.features.calling.CallContactCommand
 import com.aalavandaanus.kabaliassistant.features.calling.DefaultContactResolver
 
 @Composable
-fun ListeningScreen() {
+fun ListeningScreen(onOpenAlarms: () -> Unit) {
     val context = LocalContext.current
 
     var status by remember { mutableStateOf("Ready to listen") }
@@ -93,6 +93,11 @@ fun ListeningScreen() {
 
                         CommandRouteResult.SelectionCancelled -> {
                             status = "Contact selection cancelled."
+                        }
+
+                        CommandRouteResult.OpenAlarms -> {
+                            status = "Opening your alarms."
+                            onOpenAlarms()
                         }
 
                         is CommandRouteResult.Called -> {
