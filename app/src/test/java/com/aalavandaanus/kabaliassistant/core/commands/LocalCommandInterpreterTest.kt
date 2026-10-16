@@ -20,4 +20,19 @@ class LocalCommandInterpreterTest {
         assertEquals(CommandIntent.LIST_ALARMS, result.intent)
         assertEquals("List my alarms", result.originalTranscript)
     }
+
+    @Test
+    fun `recognizes what alarms do I have as a list alarms command`() {
+        val result = LocalCommandInterpreter().interpret("What alarms do I have?")
+
+        assertEquals(CommandIntent.LIST_ALARMS, result.intent)
+        assertEquals("What alarms do I have?", result.originalTranscript)
+    }
+
+    @Test
+    fun `does not treat a negated alarm statement as a list alarms command`() {
+        val result = LocalCommandInterpreter().interpret("I don't want to see my alarms")
+
+        assertEquals(CommandIntent.UNKNOWN, result.intent)
+    }
 }
