@@ -12,4 +12,12 @@ class LocalCommandInterpreterTest {
         assertEquals(CommandIntent.LIST_ALARMS, result.intent)
         assertEquals("Show my alarms", result.originalTranscript)
     }
+
+    @Test
+    fun `recognizes list my alarms as a list alarms command`() {
+        val result = LocalCommandInterpreter().interpret("List my alarms")
+
+        assertEquals(CommandIntent.LIST_ALARMS, result.intent)
+        assertEquals("List my alarms", result.originalTranscript)
+    }
 }
