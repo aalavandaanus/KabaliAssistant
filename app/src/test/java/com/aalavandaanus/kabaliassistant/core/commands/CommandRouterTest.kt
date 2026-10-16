@@ -15,123 +15,87 @@ import org.junit.Test
 
 class CommandRouterTest {
 
-
     private val accMuthu = Contact(
         id = 1L,
         displayName = "ACC Muthu",
         phoneNumbers = listOf(
-            PhoneNumber(
-                number = "1111111111",
-                type = PhoneNumberType.MOBILE
-            )
+            PhoneNumber(number = "1111111111", type = PhoneNumberType.MOBILE)
         )
     )
 
     @Test
     fun `route handles call command`() {
-
         val callService = FakeCallService(true)
-
-        val handler = createHandler(
-            contacts = listOf(accMuthu),
-            callService = callService
+        val router = CommandRouter(
+            createHandler(contacts = listOf(accMuthu), callService = callService)
         )
-
-        val router = CommandRouter(handler)
 
         val result = router.route("Call ACC Muthu")
 
-        assertTrue(
-            result is CommandRouteResult.Called
-        )
-
+        assertTrue(result is CommandRouteResult.Called)
         result as CommandRouteResult.Called
-
-        assertEquals(
-            "ACC Muthu",
-            result.contactName
-        )
-
-        assertEquals(
-            "1111111111",
-            result.phoneNumber
-        )
-
-        assertEquals(
-            "1111111111",
-            callService.lastNumber
-        )
+        assertEquals("ACC Muthu", result.contactName)
+        assertEquals("1111111111", result.phoneNumber)
+        assertEquals("1111111111", callService.lastNumber)
     }
 
     @Test
     fun `route returns ambiguous for multiple matches`() {
-
         val relMuthu = Contact(
             id = 2L,
             displayName = "REL Muthu",
             phoneNumbers = listOf(
-                PhoneNumber(
-                    number = "2222222222",
-                    type = PhoneNumberType.MOBILE
-                )
+                PhoneNumber(number = "2222222222", type = PhoneNumberType.MOBILE)
+            )
+        )
+        val router = CommandRouter(
+            createHandler(
+                contacts = listOf(accMuthu, relMuthu),
+                callService = FakeCallService(true)
             )
         )
 
-        val handler = createHandler(
-            contacts = listOf(
-                accMuthu,
-                relMuthu
-            ),
-            callService = FakeCallService(true)
-        )
-
-        val router = CommandRouter(handler)
-
         val result = router.route("Call Muthu")
 
-        assertTrue(
-            result is CommandRouteResult.Ambiguous
-        )
-
+        assertTrue(result is CommandRouteResult.Ambiguous)
         result as CommandRouteResult.Ambiguous
+        assertEquals(listOf("ACC Muthu", "REL Muthu"), result.contactNames)
+    }
 
-        assertEquals(
-            listOf("ACC Muthu", "REL Muthu"),
-            result.contactNames
+    @Test
+    fun `route recognizes show my alarms without calling a contact`() {
+        val callService = FakeCallService(true)
+        val router = CommandRouter(
+            createHandler(contacts = listOf(accMuthu), callService = callService)
         )
+
+        val result = router.route("Show my alarms")
+
+        assertEquals(CommandRouteResult.OpenAlarms, result)
+        assertEquals(null, callService.lastNumber)
     }
 
     @Test
     fun `route ignores unrelated text`() {
-
-        val handler = createHandler(
-            contacts = listOf(accMuthu),
-            callService = FakeCallService(true)
+        val router = CommandRouter(
+            createHandler(
+                contacts = listOf(accMuthu),
+                callService = FakeCallService(true)
+            )
         )
 
-        val router = CommandRouter(handler)
-
-        val result =
-            router.route("What is the weather")
-
-        assertTrue(
-            result is CommandRouteResult.NotHandled
-        )
+        assertTrue(router.route("What is the weather") is CommandRouteResult.NotHandled)
     }
 
     private fun createHandler(
         contacts: List<Contact>,
         callService: CallService
     ): CallCommandHandler {
-
         val command = CallContactCommand(
-            contactRepository =
-                FakeContactRepository(contacts),
-            contactResolver =
-                DefaultContactResolver(),
+            contactRepository = FakeContactRepository(contacts),
+            contactResolver = DefaultContactResolver(),
             callService = callService
         )
-
         return CallCommandHandler(
             parser = CallCommandParser(),
             callContactCommand = command
@@ -141,26 +105,16 @@ class CommandRouterTest {
     private class FakeContactRepository(
         private val contacts: List<Contact>
     ) : ContactRepository {
-
-        override fun getContacts(): List<Contact> =
-            contacts
+        override fun getContacts(): List<Contact> = contacts
     }
 
     private class FakeCallService(
         private val result: Boolean
     ) : CallService {
-
         var lastNumber: String? = null
-
-        override fun call(
-            phoneNumber: String
-        ): Boolean {
-
+        override fun call(phoneNumber: String): Boolean {
             lastNumber = phoneNumber
-
             return result
         }
     }
-
-
 }

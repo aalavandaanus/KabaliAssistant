@@ -300,7 +300,13 @@ fun AppNavigation(
 
                 // LISTENING
                 composable(Routes.LISTENING) {
-                    ListeningScreen()
+                    ListeningScreen(
+                        onOpenAlarms = {
+                            navController.navigate(Routes.ALARMS) {
+                                launchSingleTop = true
+                            }
+                        }
+                    )
                 }
 
                 // SETTINGS

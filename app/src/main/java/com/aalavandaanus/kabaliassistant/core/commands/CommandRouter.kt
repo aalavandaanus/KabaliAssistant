@@ -5,7 +5,8 @@ import com.aalavandaanus.kabaliassistant.features.calling.CallCommandHandlerResu
 import com.aalavandaanus.kabaliassistant.features.calling.Contact
 
 class CommandRouter(
-    private val callCommandHandler: CallCommandHandler
+    private val callCommandHandler: CallCommandHandler,
+    private val commandInterpreter: LocalCommandInterpreter = LocalCommandInterpreter()
 ) {
 
     private var pendingContacts: List<Contact>? = null
@@ -42,6 +43,14 @@ class CommandRouter(
             )
         }
 
+        // Recognize the alarm-list request before passing unhandled text to
+        // the existing calling handler. The interpreter never executes actions.
+        val interpretation = commandInterpreter.interpret(text)
+        if (interpretation.intent == CommandIntent.LIST_ALARMS) {
+            return CommandRouteResult.OpenAlarms
+        }
+
+        // Keep the established calling flow unchanged for call commands.
         return mapResult(callCommandHandler.handle(text))
     }
 
@@ -140,6 +149,8 @@ sealed interface CommandRouteResult {
     ) : CommandRouteResult
 
     data object SelectionCancelled : CommandRouteResult
+
+    data object OpenAlarms : CommandRouteResult
 
     data object NotFound : CommandRouteResult
 
