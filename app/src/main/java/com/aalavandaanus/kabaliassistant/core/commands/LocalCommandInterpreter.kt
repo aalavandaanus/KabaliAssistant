@@ -11,7 +11,8 @@ class LocalCommandInterpreter {
         val normalized = normalize(transcript)
 
         val intent = when (normalized) {
-            "show my alarms" -> CommandIntent.LIST_ALARMS
+            "show my alarms",
+            "list my alarms" -> CommandIntent.LIST_ALARMS
             else -> CommandIntent.UNKNOWN
         }
 
