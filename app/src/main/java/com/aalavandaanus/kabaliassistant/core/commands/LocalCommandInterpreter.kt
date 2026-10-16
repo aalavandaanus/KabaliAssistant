@@ -12,7 +12,8 @@ class LocalCommandInterpreter {
 
         val intent = when (normalized) {
             "show my alarms",
-            "list my alarms" -> CommandIntent.LIST_ALARMS
+            "list my alarms",
+            "what alarms do i have" -> CommandIntent.LIST_ALARMS
             else -> CommandIntent.UNKNOWN
         }
 
